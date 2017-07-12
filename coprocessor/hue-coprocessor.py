@@ -169,10 +169,13 @@ class CommunicationServer(threading.Thread):
                                 if 'success' in update:
                                     for key in update['success']:
                                         keys = key.strip("/").split("/")
-                                        mydata = {keys[2]: {keys[3]: update['success'][key]}}
-                                        if keys[3] == "on" and not bool(update['success'][key]):
-                                            mydata[keys[2]]["bri"] = "0"
-                                        connection.send("#" + json.dumps({keys[0].rstrip('s'): {"id": keys[1], "info": mydata}}) + '\r\n')
+                                        if update['success'][key] == "0":
+                                            mydata = {keys[2]: {keys[3]: update['success'][key]}}
+                                            if keys[3] == "on" and not bool(update['success'][key]):
+                                                mydata[keys[2]]["bri"] = "0"
+                                            connection.send("#" + json.dumps({keys[0].rstrip('s'): {"id": keys[1], "info": mydata}}) + '\r\n')
+                                        else:
+                                            connection.send("#" + json.dumps(update) + '\r\n')
                                 else:
                                     connection.send("#" + json.dumps(update) + '\r\n')
                         except TypeError:
@@ -205,9 +208,7 @@ class CommunicationServer(threading.Thread):
                                 return_me = return_data[item]
                             else:
                                 return_me = return_data[item]
-
                             connection.send("#" + json.dumps({command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
-
 
                 except ValueError:
                     logging.debug("#35 ValueError, could not process received data from client %s" % client_address[0])
@@ -288,7 +289,7 @@ class HTTPBridge(threading.Thread):
                                     light_data['state']['bri'] = 0
                                     light_data['state']['hue'] = 0
                                     light_data['state']['sat'] = 0
-                                self.message_queue.put(json.dumps({"light": {"id": light_id, "info": light_data}}))
+                                self.message_queue.put("#" + json.dumps({"light": {"id": light_id, "info": light_data}}))
                         except Exception as err4:
                             logging.error("#Error4: %s" % err4.message)
                     #
@@ -311,7 +312,7 @@ class HTTPBridge(threading.Thread):
                                         group_data['action']['bri'] = 0
                                         group_data['action']['hue'] = 0
                                         group_data['action']['sat'] = 0
-                                    self.message_queue.put(json.dumps({"group": {"id": group_id, "info": group_data}}))
+                                    self.message_queue.put("#" + json.dumps({"group": {"id": group_id, "info": group_data}}))
                             except Exception as err4:
                                 logging.error("#Error4: %s" % err4.message)
                     #
@@ -331,7 +332,7 @@ class HTTPBridge(threading.Thread):
                                     self.store["sensors"][sensor_id] = copy.deepcopy(sensor_data)
                                     logging.debug("#10 Notifying all clients of level change for sensor '%s'"
                                                   % sensor_id)
-                                    self.message_queue.put(json.dumps({"sensor": {"id": sensor_id,
+                                    self.message_queue.put("#" + json.dumps({"sensor": {"id": sensor_id,
                                                                                   "info": sensor_data}}))
                             except Exception as err4:
                                 logging.error("#Error4: %s" % err4.message)
@@ -376,7 +377,7 @@ class HTTPBridge(threading.Thread):
 
         except Exception as err:
             logging.error('Error sending Command. HTTP Request failed. %s' % err)
-            self.message_queue.put("Invalid HTTP command")
+            self.message_queue.put("#" + "Invalid HTTP command")
 
     def new_connect(self, connection):
         logging.debug("#61 New client connected. Sending all device states")
