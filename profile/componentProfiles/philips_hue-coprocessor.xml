@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0" minimum_component_engine_version="8.0">
+<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.1" minimum_component_engine_version="8.0">
     <notes>
         Obtaining Scene addresses:
         - Upload your configuration to your host and make sure philips hue is connected as stated above
@@ -18,6 +18,8 @@
     <control_interfaces preferred="ip">
         <ip port="8085" response_time_length_ms="1000" reconnect_timeout_ms="10" protocol="telnet">
             <!--<send_postfix type="hex">0D0A</send_postfix>-->
+            <receive_start_condition type="character">#</receive_start_condition>
+            <receive_end_condition test_condition="data" type="hex">0D0A</receive_end_condition>
         </ip>
     </control_interfaces>
     <media_interfaces>
@@ -53,13 +55,13 @@
             <status_message name="Groups">
                 <constant type="character">{&quot;group&quot;: </constant>
                 <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="//name" matches_required="all">
+                    <values path="//name" matches_required="none">
                         <update state="groupName" type="string"></update>
                     </values>
                     <values path="//id" matches_required="all">
-                        <update state="groupNumber" type="string"></update>
+                        <update state="groupNumber" type="integer"></update>
                     </values>
-                    <values path="//on" matches_required="all">
+                    <values path="//on" matches_required="none">
                         <update state="isGroupOn" type="boolean"></update>
                         <value_map match_required="no">
                             <map key="true">
@@ -76,7 +78,7 @@
                             </map>
                         </value_map>
                     </values>
-                    <values path="//bri" matches_required="all">
+                    <values path="//bri" matches_required="none">
                         <update state="GroupBrightness" type="integer"></update>
                         <value_map match_required="no">
                             <convert>
@@ -119,13 +121,13 @@
             <status_message name="Lights">
                 <constant type="character">{&quot;light&quot;: </constant>
                 <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="//name" matches_required="all">
+                    <values path="//name" matches_required="none">
                         <update state="lightName" type="string"></update>
                     </values>
                     <values path="//id" matches_required="all">
-                        <update state="lightNumber" type="string"></update>
+                        <update state="lightNumber" type="integer"></update>
                     </values>
-                    <values path="//bri" matches_required="all">
+                    <values path="//bri" matches_required="none">
                         <update state="Brightness" type="integer"></update>
                         <value_map match_required="no">
                             <convert>
@@ -135,7 +137,7 @@
                             </convert>
                         </value_map>
                     </values>
-                    <values path="//on" matches_required="all">
+                    <values path="//on" matches_required="none">
                         <update state="isLightOn" type="boolean"></update>
                         <value_map match_required="yes">
                             <map key="true">
@@ -194,7 +196,7 @@
             <status_message name="Scenes">
                 <constant type="character">{&quot;scene&quot;: </constant>
                 <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="//name" matches_required="all">
+                    <values path="//name" matches_required="none">
                         <update state="sceneName" type="string"></update>
                     </values>
                     <values path="//id" matches_required="all">
@@ -211,7 +213,7 @@
             <status_message name="Sensors">
                 <constant type="character">{&quot;sensor&quot;: </constant>
                 <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="//id" matches_required="none">
+                    <values path="//id" matches_required="all">
                         <update state="sensorNumber" type="integer"></update>
                     </values>
                     <values path="//name" matches_required="none">
@@ -243,21 +245,6 @@
                 </root_object>
                 <constant type="character">}</constant>
                 <append_data_to_state_names state="sensorNumber"/>
-            </status_message>
-            <status_message name="RegisterFail">
-                <constant type="character">{&quot;error&quot;: {&quot;description&quot;: &quot;</constant>
-                <data type="character" terminator_type="character" terminator="&quot;">
-                    <update state="RegisterErrorMessage" type="string"></update>
-                </data> 
-                <constant type="character">}}</constant>
-            </status_message>
-            <status_message name="RegisterSuccess">
-                <constant type="character">{&quot;success&quot;: {&quot;username&quot;: &quot;</constant>
-                <data type="character" terminator_type="character" terminator="&quot;">
-                    <update state="RegisterErrorMessage" type="string">None</update>
-                    <update state="UserName" type="string"></update>
-                </data>
-                <constant type="character">}}</constant>
             </status_message>
         </status_messages>
         <universal_component_actions>
