@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.1" minimum_component_engine_version="8.0">
+<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.2" minimum_component_engine_version="8.0">
     <notes>
         Obtaining Scene addresses:
         - Upload your configuration to your host and make sure philips hue is connected as stated above
@@ -17,7 +17,6 @@
     </notes>
     <control_interfaces preferred="ip">
         <ip port="8085" response_time_length_ms="1000" reconnect_timeout_ms="10" protocol="telnet">
-            <!--<send_postfix type="hex">0D0A</send_postfix>-->
             <receive_start_condition type="character">#</receive_start_condition>
             <receive_end_condition test_condition="data" type="hex">0D0A</receive_end_condition>
         </ip>
@@ -516,6 +515,70 @@
                         <unique_identifier name="CurrentGroupNumber" address_component="1"/>
                     </valueSource>
                 </slider_representation>
+                <group_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="0"/>
+                        </release_action>
+                        <osd_press_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="0"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="20"/>
+                        </release_action>
+                        <osd_press_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="20"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="40"/>
+                        </release_action>
+                        <osd_press_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="40"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="60"/>
+                        </release_action>
+                        <osd_press_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="60"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="80"/>
+                        </release_action>
+                        <osd_press_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="80"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="100"/>
+                        </release_action>
+                        <osd_press_action name="DimmerFlash">
+                            <argument name="DimmerLevel" value="100"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                </group_representation>
+                <toggle_button_representation>
+                    <release_action name="DimmerFlash">
+                        <argument name="DimmerLevel" value="100"/>
+                    </release_action>
+                    <toggle_action name="DimmerFlash">
+                        <argument name="DimmerLevel" value="0"/>
+                    </toggle_action>
+                    <osd_press_action name="DimmerFlash">
+                        <argument name="DimmerLevel" value="100"/>
+                    </osd_press_action>
+                    <osd_hold_action name="DimmerFlash">
+                        <argument name="DimmerLevel" value="0"/>
+                    </osd_hold_action>
+                </toggle_button_representation>
             </entity>
             <entity name="Switch" address_components="1">
                 <toggle_button_representation>
@@ -551,6 +614,70 @@
                         <unique_identifier name="CurrentLightNumber" address_component="1"/>
                     </valueSource>
                 </slider_representation>
+                <group_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="0"/>
+                        </release_action>
+                        <osd_press_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="0"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="20"/>
+                        </release_action>
+                        <osd_press_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="20"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="40"/>
+                        </release_action>
+                        <osd_press_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="40"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="60"/>
+                        </release_action>
+                        <osd_press_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="60"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="80"/>
+                        </release_action>
+                        <osd_press_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="80"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                    <push_button_representation >
+                        <release_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="100"/>
+                        </release_action>
+                        <osd_press_action name="DimmerSet">
+                            <argument name="DimmerLevel" value="100"/>
+                        </osd_press_action>
+                    </push_button_representation>
+                </group_representation>
+                <toggle_button_representation>
+                    <release_action name="DimmerSet">
+                        <argument name="DimmerLevel" value="100"/>
+                    </release_action>
+                    <toggle_action name="DimmerSet">
+                        <argument name="DimmerLevel" value="0"/>
+                    </toggle_action>
+                    <osd_press_action name="DimmerSet">
+                        <argument name="DimmerLevel" value="100"/>
+                    </osd_press_action>
+                    <osd_hold_action name="DimmerSet">
+                        <argument name="DimmerSet" value="0"/>
+                    </osd_hold_action>
+                </toggle_button_representation>
             </entity>
             <entity name="Hue" address_components="1">
                 <slider_representation>
@@ -568,7 +695,7 @@
                     </valueSource>
                 </slider_representation>
             </entity>
-            <entity name="RGB" address_components="2">
+<!--            <entity name="RGB" address_components="2">
                 <slider_representation>
                     <press_action name="DimmerSet"/>
                     <valueSource name="DimmerLevel">
@@ -576,7 +703,7 @@
                         <unique_identifier name="RGB" address_component="2" format="%d"/>
                     </valueSource>
                 </slider_representation>
-            </entity>
+            </entity>-->
         </resource_component_actions>
         <custom_component_actions>
             <action name="TurnLightOn">
