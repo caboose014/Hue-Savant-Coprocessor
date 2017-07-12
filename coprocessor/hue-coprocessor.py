@@ -430,9 +430,8 @@ def run():
 
 def discover_http():
     try:
-        result = json.loads(urllib2.urlopen("http://www.meethue.com/api/nupnp", timeout=4).read())
+        result = json.loads(urllib2.urlopen("http://www.meethue.com/api/nupnp", timeout=4).read())[0]
         return result['internalipaddress']
-
     except Exception as err:
         logging.error(err)
         return False
@@ -495,6 +494,10 @@ def load_settings(ip_address, key, cur_settings={}):
             if not http_key:
                 logging.error('#202 Unable to set API key, shutting down')
                 raise SystemExit
+
+    settings_data = {"key": http_key, "internalipaddress": http_ip_address}
+    with open('savant-hue.json', 'w') as set_file:
+        json.dump(settings_data, set_file)
 
 
 if __name__ == '__main__':
