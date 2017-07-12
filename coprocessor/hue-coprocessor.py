@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #     
 #     'http-Savant Bridge'
-#     Copyright (C) '2016'  J14 Technologies Ltd
+#     Copyright (C) '2017'  J14 Systems Ltd
 #
 #     This program is free software: you can redistribute it and/or modify
 #     it under the terms of the GNU General Public License as published by
@@ -34,11 +34,9 @@ except ImportError:
 # Server version
 server_version = '1.0'
 
-# Script Notes:
-# Last debug message number used
-
 
 class CommunicationServer(threading.Thread):
+    # Logging section 12000
     def __init__(self, message_queue, http_communications):
         threading.Thread.__init__(self)
         connection_loop = True
@@ -51,60 +49,62 @@ class CommunicationServer(threading.Thread):
         while connection_loop:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_address = ('0.0.0.0', server_port)
-            logging.info('Starting up CommunicationServer on %s, port %s' % self.server_address)
+            logging.info('#I12001 Starting up CommunicationServer on %s, port %s' % self.server_address)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, 1)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1048576)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1048576)
             try:
-                logging.debug("#7 Binding to socket")
+                logging.debug("#D12001 Binding to socket")
                 self.sock.bind(self.server_address)
-                logging.debug("#8 Binding successful, lets listen to what it says")
+                logging.debug("#D12002 Binding successful, lets listen to what it says")
                 self.sock.listen(1)
                 connection_loop = False
             except socket.error, socket_error:
-                logging.error("We have a socket error. %s" % socket_error)
+                logging.error("#E12001 We have a socket error. %s" % socket_error)
                 time.sleep(10)
             except Exception as err1:
                 self.message_queue.put('shutdown')
-                logging.error("#Error1: %s" % err1.message)
-        logging.debug("#9 Savant communications server started successfully")
+                logging.error("#I12002 %s" % err1.message)
+        logging.debug("#D12003 Savant communications server started successfully")
 
     def run(self):
-        logging.debug("#10 setting up the message queue processor")
+        # Logging section 11000
+        logging.debug("#D11001 setting up the message queue processor")
         queue_processor = threading.Thread(target=self.process_queue, args=())
         queue_processor.setDaemon(True)
-        logging.debug("#11 Starting the message queue processor")
+        logging.debug("#D11002 Starting the message queue processor")
         queue_processor.start()
-        logging.debug("#12 Message queue processor started, adding a record of thread to threads array")
+        logging.debug("#D11003 Message queue processor started, adding a record of thread to threads array")
         self.lock.acquire()
         self.threads.append(queue_processor)
         self.lock.release()
-        logging.debug("#13 Starting the HTTP communications server")
+        logging.debug("#D11004 Starting the HTTP communications server")
         self.httpcomms.start()
         while self.running:
-            logging.debug("#14 Setting up a Savant connection listener")
+            logging.debug("#D11005 Setting up a Savant connection listener")
             listen_process = threading.Thread(target=self.listen_messages, args=(self.sock.accept()))
             listen_process.setDaemon(True)
-            logging.debug("#15 Starting the Savant connection listener")
+            logging.debug("#D11006 Starting the Savant connection listener")
             listen_process.start()
-            logging.debug("#16 Adding connection listener to threads array")
+            logging.debug("#D11007 Adding connection listener to threads array")
             self.lock.acquire()
             self.threads.append(listen_process)
             self.lock.release()
 
-        logging.info("Closing CommunicationsServer")
+        logging.info("#I11001 Closing CommunicationsServer")
         self.sock.close()
 
     def process_queue(self):
-        logging.debug("#17 Message queue processor started")
+        # Logging section 10000
+        logging.debug("#D10001 Message queue processor started")
         while True:
             message = self.message_queue.get()
-            logging.debug("#18 Message received: %s" % message)
+            logging.debug("#D10002 Message received: %s" % message)
             if message == 'shutdown':
-                logging.debug("#19 Message 'Shutdown' received. Closing communications servers.")
+                logging.debug("#D10003Message 'Shutdown' received. Closing communications servers.")
                 self.running = False
-                logging.debug("#20 Force a new connection to break connection listener")
+                logging.debug("#D10004 Force a new connection to break connection listener")
                 sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock2.connect(self.server_address)
                 time.sleep(1)
@@ -112,58 +112,59 @@ class CommunicationServer(threading.Thread):
             else:
                 for client in self.clients:
                     try:
-                        logging.debug("#21 Sending received message to client")
+                        logging.debug("#D10005 Sending received message to client")
                         client.send(message + "\r\n")
                     except TypeError:
-                        logging.debug("#22 Message format not right as string, formatting for JSON. "
+                        logging.debug("#D10006 Message format not right as string, formatting for JSON. "
                                       "Sending to client")
                         client.send(json.dumps(str(message)) + "\r\n")
         self.lock.acquire()
-        logging.debug("#23 Removing message processor from threads array")
+        logging.debug("#D10007 Removing message processor from threads array")
         self.threads.remove(threading.currentThread())
         self.lock.release()
-        logging.debug("#24 Finishing message processor thread")
+        logging.debug("#D10008 Finishing message processor thread")
 
     def listen_messages(self, connection, client_address):
-        logging.info('%s connected.' % client_address[0])
+        # Logging section 9000
+        logging.info('#E9001 %s connected.' % client_address[0])
         self.lock.acquire()
-        logging.debug("#25 Adding new client %s to threads array" % client_address[0])
+        logging.debug("#D9001 Adding new client %s to threads array" % client_address[0])
         self.clients.append(connection)
         self.lock.release()
-        logging.debug("#26 Sending welcome message to client %s" % client_address[0])
+        logging.debug("#D9002 Sending welcome message to client %s" % client_address[0])
         connection.send("#" + 'J14 HTTP-Savant Relay v%s\r\n' % server_version)
         time.sleep(2)
-        logging.debug("#27 Pushing all device states to client %s" % client_address[0])
+        logging.debug("#D9003 Pushing all device states to client %s" % client_address[0])
         self.httpcomms.new_connect(connection)
         while True:
             datarecv = connection.recv(1024)
-            logging.debug("#28 Received data from %s" % client_address[0])
+            logging.debug("##D9004 Received data from %s" % client_address[0])
             if not datarecv:
-                logging.debug("#29 Invalid data received from %s. Closing client connection" % client_address[0])
+                logging.debug("#D9005 Invalid data received from %s. Closing client connection" % client_address[0])
                 break
             datarecv = datarecv.replace('\n', '')
             datarecv = datarecv.replace('\r', '')
             data = datarecv
             if data.encode('hex') == 'fffb06':
-                logging.debug("#30 Received ^C from client %s. Closing client connection" % client_address[0])
+                logging.debug("#D9006 Received ^C from client %s. Closing client connection" % client_address[0])
                 connection.close()
                 break
             if data == 'close' or data == 'exit' or data == 'quit':
-                logging.debug("#31 Received close, exit, or quit string from client %s. "
+                logging.debug("#D9007 Received close, exit, or quit string from client %s. "
                               "Closing client connection" % client_address[0])
                 break
             elif data == '':
-                logging.debug("#32 Received empty data string from client %s" % client_address[0])
-                connection.send("#" + 'Invalid Command String or malformed JSON string\r\n')
+                logging.debug("#D9008 Received empty data string from client %s" % client_address[0])
+                connection.send("#32" + 'Empty Command String\r\n')
             else:
                 try:
-                    logging.debug("#33 Received command from client: %s" % client_address[0])
+                    logging.debug("#D9009 Received command from client: %s" % client_address[0])
                     command = data
                     split_data = command.split('%')
                     try:
                         command = split_data[0]
                         body = split_data[1]
-                        return_data =  self.httpcomms.send_command(type='put', command=command, body=json.loads(body))
+                        return_data = self.httpcomms.send_command(type='put', command=command, body=json.loads(body))
                         try:
                             for update in json.loads(return_data):
                                 if 'success' in update:
@@ -173,7 +174,8 @@ class CommunicationServer(threading.Thread):
                                             mydata = {keys[2]: {keys[3]: update['success'][key]}}
                                             if keys[3] == "on" and not bool(update['success'][key]):
                                                 mydata[keys[2]]["bri"] = "0"
-                                            connection.send("#" + json.dumps({keys[0].rstrip('s'): {"id": keys[1], "info": mydata}}) + '\r\n')
+                                            connection.send("#" + json.dumps(
+                                                {keys[0].rstrip('s'): {"id": keys[1], "info": mydata}}) + '\r\n')
                                         else:
                                             connection.send("#" + json.dumps(update) + '\r\n')
                                 else:
@@ -201,61 +203,68 @@ class CommunicationServer(threading.Thread):
                             elif command == "scenes":
                                 if len(return_data[item]["appdata"]) < 0:
                                     continue
-                                return_me = {"name": return_data[item]["name"], "lights": ', '.join(return_data[item]["lights"])}
+                                return_me = {"name": return_data[item]["name"],
+                                             "lights": ', '.join(return_data[item]["lights"])}
                             elif command == "sensors":
                                 if not return_data[item]["modelid"] in devicetypes:
                                     continue
                                 return_me = return_data[item]
                             else:
                                 return_me = return_data[item]
-                            connection.send("#" + json.dumps({command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
+                            connection.send("#" + json.dumps(
+                                {command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
 
                 except ValueError:
-                    logging.debug("#35 ValueError, could not process received data from client %s" % client_address[0])
-                    connection.send("#" + '35 Invalid Command String or malformed JSON string\r\n')
+                    logging.debug("#D9010 ValueError, could not process received data from client %s"
+                                  % client_address[0])
+                    connection.send("#" + '35 ValueError, could not process received data\r\n')
                 except TypeError:
-                    logging.debug("#36 TypeError, could not process received data from client %s" % client_address[0])
-                    connection.send("#" + '36 Invalid Command String or malformed JSON string\r\n')
+                    logging.debug("#D9011 TypeError, could not process received data from client %s"
+                                  % client_address[0])
+                    connection.send("#" + '36 TypeError, could not process received data\r\n')
                 except Exception as err2:
-                    logging.error('# Error2: %s\r\n' % err2)
-                    connection.send("#" + '# Error2: %s\r\n' % err2)
+                    logging.error('#E9001 %s\r\n' % err2)
+                    connection.send('#E9001 %s\r\n' % err2)
 
-        logging.debug("#37 Client %s thread closing" % client_address[0])
+        logging.debug("#D9012 Client %s thread closing" % client_address[0])
         self.lock.acquire()
-        logging.debug("#38 Removing client %s from clients array, and thread from threads array" % client_address[0])
+        logging.debug("#D9013 Removing client %s from clients array, and thread from threads array"
+                      % client_address[0])
         self.clients.remove(connection)
         self.threads.remove(threading.currentThread())
         self.lock.release()
         connection.close()
-        logging.info('%s disconnected.' % client_address[0])
+        logging.info('#I9002 %s disconnected.' % client_address[0])
 
 
 class HTTPBridge(threading.Thread):
+    # Logging section 8000
     def __init__(self, savant_queue):
         threading.Thread.__init__(self)
         self.message_queue = savant_queue
         self.lock = threading.Lock()
         self.threads = []
         self.store = {"lights": {}, "groups": {}, "sensors": {}, "scenes": {}, "all": {}}
-        logging.debug("#39 HTTPBridge started")
+        logging.debug("#D8001 HTTPBridge started")
 
     def run(self):
-        logging.debug("#40 Setting up device poller")
+        logging.debug("#D8002 Setting up device poller")
         poller = threading.Thread(target=self.http_poller, args=())
         poller.setDaemon(True)
         poller.start()
-        logging.debug("#41 Adding device poller thread to threads array")
+        logging.debug("#D8003 Adding device poller thread to threads array")
         self.lock.acquire()
         self.threads.append(poller)
         self.lock.release()
 
     def http_poller(self):
-        logging.debug("#42 Device poller started")
+        # Logging section 7000
+        logging.debug("#D7001 Device poller started")
         while True:
             try:
-                logging.debug("#43 Asking for device statuses from %s" % http_ip_address)
+                logging.debug("#D7002 Asking for device statuses from %s" % http_ip_address)
                 result = self.send_command()
-                logging.debug("#44 Received update successfully. Processing data...")
+                logging.debug("#D7003 Received update successfully. Processing data...")
 
                 try:
                     del result['config']
@@ -267,7 +276,7 @@ class HTTPBridge(threading.Thread):
                     pass
 
                 if not self.store['all'] == result:
-                    logging.debug("#60 HTTP Data chanced since last poll")
+                    logging.debug("#D7004 HTTP Data chanced since last poll")
                     self.store["all"] = copy.deepcopy(result)
                     #
                     # Lights
@@ -276,22 +285,23 @@ class HTTPBridge(threading.Thread):
                         light_data = result['lights'][light_id]
 
                         if light_id not in self.store["lights"]:
-                            logging.debug("#20 Found a new LightID '%s', adding it to monitored lights" % light_id)
+                            logging.debug("#D7005 Found a new LightID '%s', adding it to monitored lights" % light_id)
                             self.store["lights"][light_id] = copy.deepcopy(light_data)
                         try:
                             if not self.store["lights"][light_id] == light_data:
-                                logging.debug("#19 Light '%s' information has changed"
+                                logging.debug("#D7006 Light '%s' information has changed"
                                               % light_id)
                                 self.store["lights"][light_id] = copy.deepcopy(light_data)
-                                logging.debug("#18 Notifying all clients of level change for light '%s'"
+                                logging.debug("#D7007 Notifying all clients of level change for light '%s'"
                                               % light_id)
                                 if not light_data['state']['on']:
                                     light_data['state']['bri'] = 0
                                     light_data['state']['hue'] = 0
                                     light_data['state']['sat'] = 0
-                                self.message_queue.put("#" + json.dumps({"light": {"id": light_id, "info": light_data}}))
+                                self.message_queue.put("#" + json.dumps(
+                                    {"light": {"id": light_id, "info": light_data}}))
                         except Exception as err4:
-                            logging.error("#Error4: %s" % err4.message)
+                            logging.error("#E7001: %s" % err4.message)
                     #
                     # Groups
                     #
@@ -299,22 +309,24 @@ class HTTPBridge(threading.Thread):
                         if result["groups"][group_id]["type"] in devicetypes:
                             group_data = result['groups'][group_id]
                             if group_id not in self.store["groups"]:
-                                logging.debug("#16 Found a new GroupID '%s', adding it to monitored groups" % group_id)
+                                logging.debug("#D7008 Found a new GroupID '%s', adding it to monitored groups"
+                                              % group_id)
                                 self.store["groups"][group_id] = copy.deepcopy(group_data)
                             try:
                                 if not self.store["groups"][group_id] == group_data:
-                                    logging.debug("#15 Group '%s' information has changed"
+                                    logging.debug("#D7009 Group '%s' information has changed"
                                                   % group_id)
                                     self.store["groups"][group_id] = copy.deepcopy(group_data)
-                                    logging.debug("#14 Notifying all clients of level change for group '%s'"
+                                    logging.debug("#D7010 Notifying all clients of level change for group '%s'"
                                                   % group_id)
                                     if not group_data['action']['on']:
                                         group_data['action']['bri'] = 0
                                         group_data['action']['hue'] = 0
                                         group_data['action']['sat'] = 0
-                                    self.message_queue.put("#" + json.dumps({"group": {"id": group_id, "info": group_data}}))
+                                    self.message_queue.put("#" + json.dumps(
+                                        {"group": {"id": group_id, "info": group_data}}))
                             except Exception as err4:
-                                logging.error("#Error4: %s" % err4.message)
+                                logging.error("#E7002 %s" % err4.message)
                     #
                     # Sensors
                     #
@@ -322,39 +334,42 @@ class HTTPBridge(threading.Thread):
                         if result["sensors"][sensor_id]["modelid"] in devicetypes:
                             sensor_data = result['sensors'][sensor_id]
                             if sensor_id not in self.store["sensors"]:
-                                logging.debug("#12 Found a new SensorID '%s', adding it to monitored "
+                                logging.debug("#D7011 Found a new SensorID '%s', adding it to monitored "
                                               "sensors" % sensor_id)
                                 self.store["sensors"][sensor_id] = copy.deepcopy(sensor_data)
                             try:
                                 if not self.store["sensors"][sensor_id] == sensor_data:
-                                    logging.debug("#11 Sensor '%s' information has changed"
+                                    logging.debug("#D7012 Sensor '%s' information has changed"
                                                   % sensor_id)
                                     self.store["sensors"][sensor_id] = copy.deepcopy(sensor_data)
-                                    logging.debug("#10 Notifying all clients of level change for sensor '%s'"
+                                    logging.debug("#D7013 Notifying all clients of level change for sensor '%s'"
                                                   % sensor_id)
-                                    self.message_queue.put("#" + json.dumps({"sensor": {"id": sensor_id,
-                                                                                  "info": sensor_data}}))
+                                    self.message_queue.put("#" + json.dumps({
+                                        "sensor": {"id": sensor_id, "info": sensor_data}}))
                             except Exception as err4:
-                                logging.error("#Error4: %s" % err4.message)
+                                logging.error("#E7003 %s" % err4.message)
 
             except Exception as err:
                 logging.error(err)
-                logging.error("#Error3: %s" % err)
+                logging.error("#E7004 %s" % err)
 
-            logging.debug("#56 Finished poll. Waiting for next poll.")
+            logging.debug("#D7014 Finished poll. Waiting for next poll.")
             time.sleep(http_poll_interval)
 
-    def send_command(self, type='get', command='', body={}):
-        logging.debug("#57 Sending command to controller")
+    def send_command(self, cmd_type='get', command='', body=None):
+        # Logging section 6000
+        if body is None:
+            body = {}
+        logging.debug("#D6001 Sending command to controller")
         try:
-            if type == 'get':
+            if cmd_type == 'get':
                 if command:
                     result = json.loads(urllib2.urlopen("http://%s/api/%s/%s" % (http_ip_address, http_key, command),
                                                         timeout=4).read())
                 else:
                     result = json.loads(urllib2.urlopen("http://%s/api/%s" % (http_ip_address, http_key),
                                                         timeout=4).read())
-            elif type == 'put':
+            elif cmd_type == 'put':
                 if "bri" in body:
                     if body['bri'] < 1:
                         body['on'] = False
@@ -372,15 +387,16 @@ class HTTPBridge(threading.Thread):
                     result = json.loads(urllib2.urlopen(urllib2.Request(
                         "http://%s/api/%s" % (http_ip_address, http_key), json.dumps(body)), timeout=4).read())
 
-            logging.debug("#60 Command ('%s') sent successfully" % command)
+            logging.debug("#D6002 Command ('%s') sent successfully" % command)
             return result
 
         except Exception as err:
-            logging.error('Error sending Command. HTTP Request failed. %s' % err)
+            logging.error('#E6001 Error sending Command. HTTP Request failed. %s' % err)
             self.message_queue.put("#" + "Invalid HTTP command")
 
     def new_connect(self, connection):
-        logging.debug("#61 New client connected. Sending all device states")
+        # Logging section 5000
+        logging.debug("#D5001 New client connected. Sending all device states")
         #
         # Lights
         #
@@ -418,96 +434,102 @@ class HTTPBridge(threading.Thread):
                         .join(scene_data["lights"])}}}
                 ) + '\r\n')
 
-        logging.debug("#62 States sent successfully")
+        logging.debug("#D5002 States sent successfully")
 
 
 def run():
+    # Logging section 4000
     queue = Queue(maxsize=50)
     try:
-        logging.debug("#4 Starting the HTTP communications thread")
+        logging.debug("#D4001 Starting the HTTP communications thread")
         httpcomms = HTTPBridge(queue)
-        logging.debug("#5 Starting the Savant communications thread")
+        logging.debug("#D4002 Starting the Savant communications thread")
         CommunicationServer(queue, httpcomms).start()
         while True:
             time.sleep(5)
 
     except KeyboardInterrupt:
         queue.put('shutdown')
-        logging.info('KeyboardInterrupt detected, shutting down server')
+        logging.info('#I4001 KeyboardInterrupt detected, shutting down server')
         raise SystemExit
     except Exception as err0:
         queue.put('shutdown')
-        logging.error(err0.message)
+        logging.error("#E4001" + err0.message)
     finally:
-        logging.debug("#6 Hit end of 'run()' function")
+        logging.debug("#D4003 Hit end of 'run()' function")
         queue.put('shutdown')
 
 
 def discover_http():
+    # Logging section 3000
     try:
         result = json.loads(urllib2.urlopen("http://www.meethue.com/api/nupnp", timeout=4).read())[0]
         return result['internalipaddress']
     except Exception as err:
-        logging.error(err)
+        logging.error("E3002 " + err.message)
         return False
 
 
 def register_api_key(ip_address):
+    # Logging section 2000
     while True:
         try:
-            logging.debug("#106 Obtaiing API key from: %s" % ip_address)
+            logging.debug("#D2001 Obtaiing API key from: %s" % ip_address)
             result = json.loads(urllib2.urlopen(urllib2.Request("http://%s/api" % ip_address, json.dumps({
                 "devicetype": "HTTPBridge"})), timeout=4).read())[0]
             if result['error']:
-                logging.error(json.dumps({"error": {"description": result["error"]["description"]}}))
+                logging.error(json.dumps({"E2001 error": {"description": result["error"]["description"]}}))
                 time.sleep(10)
             else:
-                logging.debug("#101 API key successfully created: %s" % result["success"]["username"])
+                logging.debug("D2002 API key successfully created: %s" % result["success"]["username"])
                 return result["success"]["username"]
         except Exception as err:
-            logging.error(err)
+            logging.error("E2002 " + err.message)
             return False
 
 
-def load_settings(ip_address, key, cur_settings={}):
+def load_settings(ip_address, key, cur_settings=None):
+    # Logging section 1000
+    if cur_settings is None:
+        cur_settings = {}
     global http_key
     global http_ip_address
-    logging.debug('#200 Loading settings')
+    logging.debug('#D1001 Loading settings')
     if ip_address == "":
         try:
             http_ip_address = cur_settings['internalipaddress']
             if http_ip_address:
-                logging.debug('#201 IP address set to %s from settings file' % http_ip_address)
+                logging.debug('#D1002 IP address set to %s from settings file' % http_ip_address)
             else:
                 http_ip_address = discover_http()
-                logging.debug('#204 IP address set to %s from discovery' % http_ip_address)
+                logging.debug('#D1003 IP address set to %s from discovery' % http_ip_address)
                 if not http_ip_address:
-                    logging.error('#205 Unable to find HTTP IP address, shutting down')
+                    logging.error('#E1001 Unable to find HTTP IP address, shutting down')
                     raise SystemExit
 
         except KeyError:
             http_ip_address = discover_http()
-            logging.debug('#202 IP address set to %s from discovery' % http_ip_address)
+            logging.debug('#D1004 IP address set to %s from discovery' % http_ip_address)
             if not http_ip_address:
-                logging.error('#103 Unable to find HTTP IP address, shutting down')
+                logging.error('#E1002 Unable to find HTTP IP address, shutting down')
                 raise SystemExit
 
     if key == "":
         try:
             http_key = cur_settings['key']
             if http_key:
-                logging.debug('#203 API Key set to %s from settings file' % http_key)
+                logging.debug('#D1005 API Key set to %s from settings file' % http_key)
             else:
                 http_key = register_api_key(http_ip_address)
-                logging.debug('#205 API Key set to %s from register' % http_key)
+                logging.debug('#D1006 API Key set to %s from register' % http_key)
                 if not http_key:
-                    logging.error('#206 Unable to set API key, shutting down')
+                    logging.error('#E1003 Unable to set API key, shutting down')
                     raise SystemExit
         except KeyError:
             http_key = register_api_key(http_ip_address)
-            logging.debug('#204 API Key set to %s from register' % http_key)
+            logging.debug('#D1007 API Key set to %s from register' % http_key)
             if not http_key:
-                logging.error('#202 Unable to set API key, shutting down')
+                logging.error('#E1004 Unable to set API key, shutting down')
                 raise SystemExit
 
     settings_data = {"key": http_key, "internalipaddress": http_ip_address}
@@ -516,6 +538,7 @@ def load_settings(ip_address, key, cur_settings={}):
 
 
 if __name__ == '__main__':
+    # Logging Section #0000
 
     home = expanduser("~")
 
@@ -566,7 +589,7 @@ if __name__ == '__main__':
 
     # Create an array of device types to monitor
     for watchtype in args.type:
-        logging.debug("Adding device type '%s' to monitor" % watchtype)
+        logging.debug("#D0001 Adding device type '%s' to monitor" % watchtype)
         devicetypes.append(watchtype)
 
     # Load settings
@@ -576,7 +599,7 @@ if __name__ == '__main__':
                 file_settings = json.load(fp)
             load_settings(http_ip_address, http_key, file_settings)
         except IOError:
-            logging.error("#0 No Settings File, creating new file and adding settings")
+            logging.error("#E0001 No Settings File, creating new file and adding settings")
             new_settings_data = {"key": "", "internalipaddress": ""}
             with open(settings_file, 'w') as fp:
                 json.dump(new_settings_data, fp)
@@ -586,29 +609,29 @@ if __name__ == '__main__':
                 json.dump(file_settings, fp)
 
     # Spit out some debug information to start with
-    logging.debug("Relay started")
-    logging.debug("Logging level = %s" % args.log)
-    logging.debug("Logfile = %s" % args.file)
-    logging.debug("Server Port = %s" % args.port)
-    logging.debug("HTTP key = %s" % http_key)
-    logging.debug("HTTP IP address = %s" % http_ip_address)
-    logging.debug("HTTP polling interval = %s" % args.interval)
+    logging.debug("#D0002 Relay started")
+    logging.debug("#D0003 Logging level = %s" % args.log)
+    logging.debug("#D0004 Logfile = %s" % args.file)
+    logging.debug("#D0005 Server Port = %s" % args.port)
+    logging.debug("#D0006 HTTP key = %s" % http_key)
+    logging.debug("#D0007 HTTP IP address = %s" % http_ip_address)
+    logging.debug("#D0008 HTTP polling interval = %s" % args.interval)
 
     while True:
-        logging.debug("#1 Starting main loop")
+        logging.debug("#D0009 Starting main loop")
         if max_reconnects > 1:
             try:
-                logging.debug("#2 Starting 'run()' function")
+                logging.debug("#D0010 Starting 'run()' function")
                 run()
             except socket.error, err5:
-                logging.error('Connect error:', err5[1])
+                logging.error('#E0002 Connect error:', err5[1])
                 reconnect_delay *= 2
-            logging.info('Waiting', reconnect_delay, 'seconds before restart.')
-            logging.info('Will try', max_reconnects, 'more times before shutdown')
+            logging.info('#I0001 Waiting', reconnect_delay, 'seconds before restart.')
+            logging.info('#I0002 Will try', max_reconnects, 'more times before shutdown')
             max_reconnects -= 1
             time.sleep(reconnect_delay)
-            logging.info('Restarting...')
+            logging.info('#I0003 Restarting...')
         else:
-            logging.debug("#3 End of script, exiting")
-            logging.info('EOL, goodbye')
+            logging.debug("#D0011 End of script, exiting")
+            logging.info('#I0004 EOL, goodbye')
             raise SystemExit
