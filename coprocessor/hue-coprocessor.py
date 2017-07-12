@@ -24,6 +24,7 @@ import urllib2
 import logging
 import threading
 from Queue import Queue
+from os.path import expanduser
 
 try:
     import argparse
@@ -130,7 +131,7 @@ class CommunicationServer(threading.Thread):
         self.clients.append(connection)
         self.lock.release()
         logging.debug("#26 Sending welcome message to client %s" % client_address[0])
-        connection.send('J14 HTTP-Savant Relay v%s\r\n' % server_version)
+        connection.send("#" + 'J14 HTTP-Savant Relay v%s\r\n' % server_version)
         time.sleep(2)
         logging.debug("#27 Pushing all device states to client %s" % client_address[0])
         self.httpcomms.new_connect(connection)
@@ -153,7 +154,7 @@ class CommunicationServer(threading.Thread):
                 break
             elif data == '':
                 logging.debug("#32 Received empty data string from client %s" % client_address[0])
-                connection.send('Invalid Command String or malformed JSON string\r\n')
+                connection.send("#" + 'Invalid Command String or malformed JSON string\r\n')
             else:
                 try:
                     logging.debug("#33 Received command from client: %s" % client_address[0])
@@ -163,7 +164,20 @@ class CommunicationServer(threading.Thread):
                         command = split_data[0]
                         body = split_data[1]
                         return_data =  self.httpcomms.send_command(type='put', command=command, body=json.loads(body))
-                        connection.send(return_data + '\r\n')
+                        try:
+                            for update in json.loads(return_data):
+                                if 'success' in update:
+                                    for key in update['success']:
+                                        keys = key.strip("/").split("/")
+                                        mydata = {keys[2]: {keys[3]: update['success'][key]}}
+                                        if keys[3] == "on" and not bool(update['success'][key]):
+                                            mydata[keys[2]]["bri"] = "0"
+                                        connection.send("#" + json.dumps({keys[0].rstrip('s'): {"id": keys[1], "info": mydata}}) + '\r\n')
+                                else:
+                                    connection.send("#" + json.dumps(update) + '\r\n')
+                        except TypeError:
+                                connection.send("#" + json.dumps(return_data) + '\r\n')
+                    
                     except IndexError:
                         return_data = self.httpcomms.send_command(type='get', command=command)
                         for item in return_data:
@@ -192,18 +206,18 @@ class CommunicationServer(threading.Thread):
                             else:
                                 return_me = return_data[item]
 
-                            connection.send(json.dumps({command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
+                            connection.send("#" + json.dumps({command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
 
 
                 except ValueError:
                     logging.debug("#35 ValueError, could not process received data from client %s" % client_address[0])
-                    connection.send('Invalid Command String or malformed JSON string\r\n')
+                    connection.send("#" + '35 Invalid Command String or malformed JSON string\r\n')
                 except TypeError:
                     logging.debug("#36 TypeError, could not process received data from client %s" % client_address[0])
-                    connection.send('Invalid Command String or malformed JSON string\r\n')
+                    connection.send("#" + '36 Invalid Command String or malformed JSON string\r\n')
                 except Exception as err2:
                     logging.error('# Error2: %s\r\n' % err2)
-                    connection.send('# Error2: %s\r\n' % err2)
+                    connection.send("#" + '# Error2: %s\r\n' % err2)
 
         logging.debug("#37 Client %s thread closing" % client_address[0])
         self.lock.acquire()
@@ -375,7 +389,7 @@ class HTTPBridge(threading.Thread):
                 light_data['state']['bri'] = 0
                 light_data['state']['hue'] = 0
                 light_data['state']['sat'] = 0
-            connection.send(json.dumps({"light": {"id": light_id, "info": light_data}}) + '\r\n')
+            connection.send("#" + json.dumps({"light": {"id": light_id, "info": light_data}}) + '\r\n')
         #
         # Groups
         #
@@ -385,20 +399,20 @@ class HTTPBridge(threading.Thread):
                 group_data['action']['bri'] = 0
                 group_data['action']['hue'] = 0
                 group_data['action']['sat'] = 0
-            connection.send(json.dumps({"group": {"id": group_id, "info": group_data}}) + '\r\n')
+            connection.send("#" + json.dumps({"group": {"id": group_id, "info": group_data}}) + '\r\n')
         #
         # Sensors
         #
         for sensor_id in self.store['sensors']:
             sensor_data = self.store['sensors'][sensor_id]
-            connection.send(json.dumps({"sensor": {"id": sensor_id, "info": sensor_data}}) + '\r\n')
+            connection.send("#" + json.dumps({"sensor": {"id": sensor_id, "info": sensor_data}}) + '\r\n')
         #
         # Scenes
         #
         for scene_id in self.store['all']['scenes']:
             scene_data = self.store['all']['scenes'][scene_id]
             if len(scene_data["appdata"]) > 0:
-                connection.send(json.dumps(
+                connection.send("#" + json.dumps(
                     {"scene": {"id": scene_id, "info": {"name": scene_data["name"], "lights": ', '
                         .join(scene_data["lights"])}}}
                 ) + '\r\n')
@@ -496,11 +510,14 @@ def load_settings(ip_address, key, cur_settings={}):
                 raise SystemExit
 
     settings_data = {"key": http_key, "internalipaddress": http_ip_address}
-    with open('savant-hue.json', 'w') as set_file:
+    with open(settings_file, 'w') as set_file:
         json.dump(settings_data, set_file)
 
 
 if __name__ == '__main__':
+
+    home = expanduser("~")
+
     # Argument parser and options
     parser = argparse.ArgumentParser(description="J14 HTTP-Savant Relay Server")
     parser.add_argument('-l', '--log', help="Logging Level: CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET",
@@ -508,7 +525,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--debug', help="Set Logging Level to DEBUG",
                         required=False, action='store_true')
     parser.add_argument('-f', '--file', help="Logging File path",
-                        required=False, default="http-savant.log")
+                        required=False, default="%s/http-savant.log" % home)
     parser.add_argument('-P', '--port', help="Port to start the telnet server on (for Savant communication)",
                         required=False, default=8085)
     parser.add_argument('-k', '--key', help="HTTP API Key",
@@ -544,6 +561,7 @@ if __name__ == '__main__':
     max_reconnects = args.maxrecon
     reconnect_delay = args.recontime
     devicetypes = []
+    settings_file = "%s/savant-hue.json" % home
 
     # Create an array of device types to monitor
     for watchtype in args.type:
@@ -553,17 +571,17 @@ if __name__ == '__main__':
     # Load settings
     if http_key == "" or http_ip_address == "":
         try:
-            with open('savant-hue.json', 'r') as fp:
+            with open(settings_file, 'r') as fp:
                 file_settings = json.load(fp)
             load_settings(http_ip_address, http_key, file_settings)
         except IOError:
             logging.error("#0 No Settings File, creating new file and adding settings")
             new_settings_data = {"key": "", "internalipaddress": ""}
-            with open('savant-hue.json', 'w') as fp:
+            with open(settings_file, 'w') as fp:
                 json.dump(new_settings_data, fp)
             load_settings(http_ip_address, http_key)
             file_settings = {"internalipaddress": http_ip_address, "key": http_key}
-            with open('savant-hue.json', 'w') as fp:
+            with open(settings_file, 'w') as fp:
                 json.dump(file_settings, fp)
 
     # Spit out some debug information to start with
