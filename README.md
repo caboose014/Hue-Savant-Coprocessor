@@ -19,13 +19,18 @@ Choose your platform:
 	
 1. Download and unzip a copy of this GitHub repository. For the remainder of this guide, I will assume you have downloaded it to your Downloads folder.
 2. Copy the files to your Host using the following commands fromthe Terminal application (~/Applications/Utilities/Terminal):
-		 A. 		 
+A. 		 
  ```
  scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/hue-coprocessor.py RPM@192.168.14.50:hue-coprocessor.py
  ```
-		 B. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/smart/hue-coprocessor RPM@192.168.14.50:hue-coprocessor`
+B. 
+```
+scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/smart/hue-coprocessor RPM@192.168.14.50:hue-coprocessor
+```
 3. SSH into the host to preform the next steps. From Terminal again type:
-`ssh RPM@192.168.14.50`
+```
+ssh RPM@192.168.14.50
+```
 When prompted, enter your password (Default is 'RPM'). If you get an authenticity warning, just type 'yes'
 4. Once logged in,  we need to have root privileges to preform the next steps. Get these by typing: `sudo su` This will prompt you for your password again. Now you should be identified as the root user
 5. Now copy our two files to their appropriate location. To do this use the following commands:
