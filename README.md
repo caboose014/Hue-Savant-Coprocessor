@@ -19,18 +19,10 @@ Choose your platform:
 	
 1. Download and unzip a copy of this GitHub repository. For the remainder of this guide, I will assume you have downloaded it to your Downloads folder.
 2. Copy the files to your Host using the following commands fromthe Terminal application (~/Applications/Utilities/Terminal):
-A. 		 
- ```
- scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/hue-coprocessor.py RPM@192.168.14.50:hue-coprocessor.py
- ```
-B. 
-```
-scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/smart/hue-coprocessor RPM@192.168.14.50:hue-coprocessor
-```
+		 A. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/hue-coprocessor.py RPM@192.168.14.50:hue-coprocessor.py`
+		 B. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/smart/hue-coprocessor RPM@192.168.14.50:hue-coprocessor`
 3. SSH into the host to preform the next steps. From Terminal again type:
-```
-ssh RPM@192.168.14.50
-```
+`ssh RPM@192.168.14.50`
 When prompted, enter your password (Default is 'RPM'). If you get an authenticity warning, just type 'yes'
 4. Once logged in,  we need to have root privileges to preform the next steps. Get these by typing: `sudo su` This will prompt you for your password again. Now you should be identified as the root user
 5. Now copy our two files to their appropriate location. To do this use the following commands:
@@ -53,3 +45,14 @@ or
 
 Post Install Steps:
 -------------------
+After you have installed and started the CoProcessor you will need to press the Link button on your Philips Hue bridge for us to register a user with it.
+
+As soon as the CoProcessor is started for the first time, it should discover your bridge on the network (as long as you have a working internet connection). If you have no internet, you will have to manually start the coprocessor at least once using the following command (substituting the IP address with that of your hosts):
+
+`/root/hue-coprocessor.py -a 192.168.14.50`
+
+If you also already know the API key you want to use you can pass this to the CoProcessor as well:
+
+`/root/hue-coprocessor.py -a 192.168.14.50 -k <apikey>`
+
+Once you have done that the CoProcessor will save the information in a settings file in the same location the script is kept. You can now stop this instance of the CoProcessor and restart the main one using the command listed in the installation steps above.
