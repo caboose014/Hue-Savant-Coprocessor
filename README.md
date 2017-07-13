@@ -56,3 +56,9 @@ If you also already know the API key you want to use you can pass this to the Co
 `/root/hue-coprocessor.py -a 192.168.14.50 -k <apikey>`
 
 Once you have done that the CoProcessor will save the information in a settings file in the same location the script is kept. You can now stop this instance of the CoProcessor and restart the main one using the command listed in the installation steps above.
+
+This process only has to be done once. After we have a connection to the Philips Hue bridge, as long as that API key is valid we will have control - even though multiple restarts of the host.
+
+Watching Logs
+-------
+A log file is created in the same directory as the CoProcessor script. If you need more information put into this file for troubleshooting you can manually start the CoProcessor with the `-d` switch. This will enable the debug output.
