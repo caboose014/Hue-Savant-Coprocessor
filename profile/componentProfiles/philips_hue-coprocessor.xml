@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.2" minimum_component_engine_version="8.0">
+<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.4" minimum_component_engine_version="8.0">
     <notes>
         Obtaining Scene addresses:
         - Upload your configuration to your host and make sure philips hue is connected as stated above
-        - From System Monitor run the 'EnterSceneSaver' command from the 'Service Events' screen
         - Copy the Scene states that are listed for this device from "System State" and paste in TextEdit.app (this is because it copies a plist not the actual state)
         - Now copy the string value and paste that into your data table as required
         - Re-upload.
@@ -423,7 +422,7 @@
                     </command>
                 </command_interface>                
             </action>
-            <action name="LowVoltageDimmerSet">
+            <action name="DimmerFlash">
                 <!-- Color Temp -->
                 <action_argument name="Address1" note="Bulb Number (1-50)"/>
                 <action_argument name="Address2" note=""/>
@@ -472,7 +471,7 @@
                     </command>
                 </command_interface>
             </action>
-            <action name="DimmerFlash">
+            <action name="LowVoltageDimmerSet">
                 <!-- Group Brightness -->
                 <action_argument name="Address1" note="Group Number"/>
                 <action_argument name="Address2" note=""/>
@@ -510,72 +509,72 @@
             </entity>
             <entity name="GroupDimmer" address_components="1">
                 <slider_representation>
-                    <press_action name="DimmerFlash"/>
+                    <press_action name="LowVoltageDimmerSet"/>
                     <valueSource name="DT_GroupBrightness">
                         <unique_identifier name="CurrentGroupNumber" address_component="1"/>
                     </valueSource>
                 </slider_representation>
                 <group_representation>
                     <push_button_representation >
-                        <release_action name="DimmerFlash">
+                        <release_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="0"/>
                         </release_action>
-                        <osd_press_action name="DimmerFlash">
+                        <osd_press_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="0"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="DimmerFlash">
+                        <release_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="20"/>
                         </release_action>
-                        <osd_press_action name="DimmerFlash">
+                        <osd_press_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="20"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="DimmerFlash">
+                        <release_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="40"/>
                         </release_action>
-                        <osd_press_action name="DimmerFlash">
+                        <osd_press_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="40"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="DimmerFlash">
+                        <release_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="60"/>
                         </release_action>
-                        <osd_press_action name="DimmerFlash">
+                        <osd_press_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="60"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="DimmerFlash">
+                        <release_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="80"/>
                         </release_action>
-                        <osd_press_action name="DimmerFlash">
+                        <osd_press_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="80"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="DimmerFlash">
+                        <release_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="100"/>
                         </release_action>
-                        <osd_press_action name="DimmerFlash">
+                        <osd_press_action name="LowVoltageDimmerSet">
                             <argument name="DimmerLevel" value="100"/>
                         </osd_press_action>
                     </push_button_representation>
                 </group_representation>
                 <toggle_button_representation>
-                    <release_action name="DimmerFlash">
+                    <release_action name="LowVoltageDimmerSet">
                         <argument name="DimmerLevel" value="100"/>
                     </release_action>
-                    <toggle_action name="DimmerFlash">
+                    <toggle_action name="LowVoltageDimmerSet">
                         <argument name="DimmerLevel" value="0"/>
                     </toggle_action>
-                    <osd_press_action name="DimmerFlash">
+                    <osd_press_action name="LowVoltageDimmerSet">
                         <argument name="DimmerLevel" value="100"/>
                     </osd_press_action>
-                    <osd_hold_action name="DimmerFlash">
+                    <osd_hold_action name="LowVoltageDimmerSet">
                         <argument name="DimmerLevel" value="0"/>
                     </osd_hold_action>
                 </toggle_button_representation>
@@ -607,7 +606,7 @@
                     <press_action name="ButtonPress"/>
                 </push_button_representation>
             </entity>
-            <entity name="Brightness" address_components="1">
+            <entity name="BulbDimmer" address_components="1">
                 <slider_representation>
                     <press_action name="DimmerSet"/>
                     <valueSource name="DT_Brightness">
@@ -689,7 +688,7 @@
             </entity>
             <entity name="Saturation" address_components="1">
                 <slider_representation>
-                    <press_action name="LowVoltageDimmerSet"/>
+                    <press_action name="DimmerFlash"/>
                     <valueSource name="DT_Saturation">
                         <unique_identifier name="CurrentLightNumber" address_component="1"/>
                     </valueSource>
