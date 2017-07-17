@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.4" minimum_component_engine_version="8.0">
+<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.6" minimum_component_engine_version="8.0">
     <notes>
         Obtaining Scene addresses:
         - Upload your configuration to your host and make sure philips hue is connected as stated above
@@ -260,82 +260,6 @@
             </action>
         </universal_component_actions>
         <resource_component_actions resource_type="ENV_LIGHTINGCONTROLLER_SOURCE">
-            <action name="SwitchOn">
-                <action_argument name="Address1" note="Bulb Number (1-50)"/>
-                <action_argument name="Address2" note=""/>
-                <action_argument name="Address3" note=""/>
-                <action_argument name="Address4" note=""/>
-                <action_argument name="Address5" note=""/>
-                <action_argument name="Address6" note=""/>
-                <command_interface interface="ip">
-                    <command response_required="yes">
-                        <parameter_list>
-                            <parameter parameter_data_type="character">lights/</parameter>
-                            <parameter parameter_data_type="character" action_argument="Address1"/>
-                            <parameter parameter_data_type="character">/state</parameter>
-                            <parameter parameter_data_type="character">%{&quot;on&quot;: true}</parameter>
-                        </parameter_list>
-                        <delay ms_delay="50"/>
-                    </command>
-                </command_interface>
-            </action>
-            <action name="SwitchOff">
-                <action_argument name="Address1" note="Bulb Number (1-50)"/>
-                <action_argument name="Address2" note=""/>
-                <action_argument name="Address3" note=""/>
-                <action_argument name="Address4" note=""/>
-                <action_argument name="Address5" note=""/>
-                <action_argument name="Address6" note=""/>
-                <command_interface interface="ip">
-                    <command response_required="yes">
-                        <parameter_list>
-                            <parameter parameter_data_type="character">lights/</parameter>
-                            <parameter parameter_data_type="character" action_argument="Address1"/>
-                            <parameter parameter_data_type="character">/state</parameter>
-                            <parameter parameter_data_type="character">%{&quot;on&quot;: false}</parameter>
-                        </parameter_list>
-                        <delay ms_delay="50"/>
-                    </command>
-                </command_interface>
-            </action>
-            <action name="RFSwitchOn">
-                <action_argument name="Address1" note="Group Number"/>
-                <action_argument name="Address2" note=""/>
-                <action_argument name="Address3" note=""/>
-                <action_argument name="Address4" note=""/>
-                <action_argument name="Address5" note=""/>
-                <action_argument name="Address6" note=""/>
-                <command_interface interface="ip">
-                    <command response_required="yes">
-                        <parameter_list>
-                            <parameter parameter_data_type="character">groups/</parameter>
-                            <parameter parameter_data_type="character" action_argument="Address1"/>
-                            <parameter parameter_data_type="character">/action</parameter>
-                            <parameter parameter_data_type="character">%{&quot;on&quot;: true}</parameter>
-                        </parameter_list>
-                        <delay ms_delay="50"/>
-                    </command>
-                </command_interface>
-            </action>
-            <action name="RFSwitchOff">
-                <action_argument name="Address1" note="Group Number"/>
-                <action_argument name="Address2" note=""/>
-                <action_argument name="Address3" note=""/>
-                <action_argument name="Address4" note=""/>
-                <action_argument name="Address5" note=""/>
-                <action_argument name="Address6" note=""/>
-                <command_interface interface="ip">
-                    <command response_required="yes">
-                        <parameter_list>
-                            <parameter parameter_data_type="character">groups/</parameter>
-                            <parameter parameter_data_type="character" action_argument="Address1"/>
-                            <parameter parameter_data_type="character">/action</parameter>
-                            <parameter parameter_data_type="character">%{&quot;on&quot;: false}</parameter>
-                        </parameter_list>
-                        <delay ms_delay="50"/>
-                    </command>
-                </command_interface>
-            </action>
             <action name="ButtonPress">
                 <action_argument name="Address1" note="Bulb Number (1-50)"/>
                 <action_argument name="Address2" note=""/>
@@ -392,7 +316,7 @@
                     </command>
                 </command_interface>
             </action>
-            <action name="RFDimmerSet">
+            <action name="LowVoltageDimmerSet">
                 <!-- Hue -->
                 <action_argument name="Address1" note="Bulb Number (1-50)"/>
                 <action_argument name="Address2" note=""/>
@@ -471,7 +395,7 @@
                     </command>
                 </command_interface>
             </action>
-            <action name="LowVoltageDimmerSet">
+            <action name="RFDimmerSet">
                 <!-- Group Brightness -->
                 <action_argument name="Address1" note="Group Number"/>
                 <action_argument name="Address2" note=""/>
@@ -509,82 +433,90 @@
             </entity>
             <entity name="GroupDimmer" address_components="1">
                 <slider_representation>
-                    <press_action name="LowVoltageDimmerSet"/>
+                    <press_action name="RFDimmerSet"/>
                     <valueSource name="DT_GroupBrightness">
                         <unique_identifier name="CurrentGroupNumber" address_component="1"/>
                     </valueSource>
                 </slider_representation>
                 <group_representation>
                     <push_button_representation >
-                        <release_action name="LowVoltageDimmerSet">
+                        <release_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="0"/>
                         </release_action>
-                        <osd_press_action name="LowVoltageDimmerSet">
+                        <osd_press_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="0"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="LowVoltageDimmerSet">
+                        <release_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="20"/>
                         </release_action>
-                        <osd_press_action name="LowVoltageDimmerSet">
+                        <osd_press_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="20"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="LowVoltageDimmerSet">
+                        <release_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="40"/>
                         </release_action>
-                        <osd_press_action name="LowVoltageDimmerSet">
+                        <osd_press_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="40"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="LowVoltageDimmerSet">
+                        <release_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="60"/>
                         </release_action>
-                        <osd_press_action name="LowVoltageDimmerSet">
+                        <osd_press_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="60"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="LowVoltageDimmerSet">
+                        <release_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="80"/>
                         </release_action>
-                        <osd_press_action name="LowVoltageDimmerSet">
+                        <osd_press_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="80"/>
                         </osd_press_action>
                     </push_button_representation>
                     <push_button_representation >
-                        <release_action name="LowVoltageDimmerSet">
+                        <release_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="100"/>
                         </release_action>
-                        <osd_press_action name="LowVoltageDimmerSet">
+                        <osd_press_action name="RFDimmerSet">
                             <argument name="DimmerLevel" value="100"/>
                         </osd_press_action>
                     </push_button_representation>
                 </group_representation>
                 <toggle_button_representation>
-                    <release_action name="LowVoltageDimmerSet">
+                    <release_action name="RFDimmerSet">
                         <argument name="DimmerLevel" value="100"/>
                     </release_action>
-                    <toggle_action name="LowVoltageDimmerSet">
+                    <toggle_action name="RFDimmerSet">
                         <argument name="DimmerLevel" value="0"/>
                     </toggle_action>
-                    <osd_press_action name="LowVoltageDimmerSet">
+                    <osd_press_action name="RFDimmerSet">
                         <argument name="DimmerLevel" value="100"/>
                     </osd_press_action>
-                    <osd_hold_action name="LowVoltageDimmerSet">
+                    <osd_hold_action name="RFDimmerSet">
                         <argument name="DimmerLevel" value="0"/>
                     </osd_hold_action>
                 </toggle_button_representation>
             </entity>
             <entity name="Switch" address_components="1">
                 <toggle_button_representation>
-                    <release_action name="SwitchOn"> </release_action>
-                    <toggle_release_action name="SwitchOff"> </toggle_release_action>
-                    <osd_press_action name="SwitchOn"> </osd_press_action>
-                    <osd_hold_action name="SwitchOff"> </osd_hold_action>
+                    <press_action name="DimmerSet">
+                        <argument name="DimmerLevel" value="100"/>
+                    </press_action>
+                    <toggle_action name="DimmerSet">
+                        <argument name="DimmerLevel" value="0"/>
+                    </toggle_action>
+                    <osd_press_action name="DimmerSet">
+                        <argument name="DimmerLevel" value="100"/>
+                    </osd_press_action>
+                    <osd_hold_action name="DimmerSet">
+                        <argument name="DimmerLevel" value="0"/>
+                    </osd_hold_action>
                     <toggleOnUsingState name="isLightOn">
                         <unique_identifier name="CurrentLightNumber" address_component="1"/>
                     </toggleOnUsingState>
@@ -592,10 +524,18 @@
             </entity>
             <entity name="GroupSwitch" address_components="1">
                 <toggle_button_representation>
-                    <release_action name="RFSwitchOn"> </release_action>
-                    <toggle_release_action name="RFSwitchOff"> </toggle_release_action>
-                    <osd_press_action name="RFSwitchOn"> </osd_press_action>
-                    <osd_hold_action name="RFSwitchOff"> </osd_hold_action>
+                    <press_action name="RFDimmerSet">
+                        <argument name="DimmerLevel" value="100"/>
+                    </press_action>
+                    <toggle_action name="RFDimmerSet">
+                        <argument name="DimmerLevel" value="0"/>
+                    </toggle_action>
+                    <osd_press_action name="RFDimmerSet">
+                        <argument name="DimmerLevel" value="100"/>
+                    </osd_press_action>
+                    <osd_hold_action name="RFDimmerSet">
+                        <argument name="DimmerLevel" value="0"/>
+                    </osd_hold_action>
                     <toggleOnUsingState name="isGroupOn">
                         <unique_identifier name="groupNumber" address_component="1"/>
                     </toggleOnUsingState>
@@ -680,7 +620,7 @@
             </entity>
             <entity name="Hue" address_components="1">
                 <slider_representation>
-                    <press_action name="RFDimmerSet"/>
+                    <press_action name="LowVoltageDimmerSet"/>
                     <valueSource name="DT_Hue">
                         <unique_identifier name="CurrentLightNumber" address_component="1"/>
                     </valueSource>
