@@ -164,7 +164,7 @@ class CommunicationServer(threading.Thread):
                     try:
                         command = split_data[0]
                         body = split_data[1]
-                        return_data = self.httpcomms.send_command(type='put', command=command, body=json.loads(body))
+                        return_data = self.httpcomms.send_command(cmd_type='put', command=command, body=json.loads(body))
                         try:
                             for update in json.loads(return_data):
                                 if 'success' in update:
@@ -184,7 +184,7 @@ class CommunicationServer(threading.Thread):
                                 connection.send("#" + json.dumps(return_data) + '\r\n')
                     
                     except IndexError:
-                        return_data = self.httpcomms.send_command(type='get', command=command)
+                        return_data = self.httpcomms.send_command(cmd_type='get', command=command)
                         for item in return_data:
                             if command == "lights":
                                 if not return_data[item]['state']['on']:
@@ -213,15 +213,19 @@ class CommunicationServer(threading.Thread):
                                 return_me = return_data[item]
                             connection.send("#" + json.dumps(
                                 {command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
+                    except TypeError:
+                        logging.debug("#D9012 TypeError, could not process received data from client %s"
+                                      % client_address[0])
+                        connection.send('#D9012 TypeError, could not process received data\r\n')
 
                 except ValueError:
                     logging.debug("#D9010 ValueError, could not process received data from client %s"
                                   % client_address[0])
-                    connection.send("#" + '35 ValueError, could not process received data\r\n')
+                    connection.send('#D9010 ValueError, could not process received data\r\n')
                 except TypeError:
                     logging.debug("#D9011 TypeError, could not process received data from client %s"
                                   % client_address[0])
-                    connection.send("#" + '36 TypeError, could not process received data\r\n')
+                    connection.send('#D9011 TypeError, could not process received data\r\n')
                 except Exception as err2:
                     logging.error('#E9001 %s\r\n' % err2)
                     connection.send('#E9001 %s\r\n' % err2)
@@ -475,8 +479,7 @@ def register_api_key(ip_address):
     while True:
         try:
             logging.debug("#D2001 Obtaiing API key from: %s" % ip_address)
-            result = json.loads(urllib2.urlopen(urllib2.Request("http://%s/api" % ip_address, json.dumps({
-                "devicetype": "HTTPBridge"})), timeout=4).read())[0]
+            result = json.loads(urllib2.urlopen(urllib2.Request("http://%s/api" % ip_address, json.dumps({"devicetype": "HTTPBridge"})), timeout=4).read())[0]
             if result['error']:
                 logging.error(json.dumps({"E2001 error": {"description": result["error"]["description"]}}))
                 time.sleep(10)
