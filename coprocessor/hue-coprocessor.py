@@ -164,7 +164,8 @@ class CommunicationServer(threading.Thread):
                     try:
                         command = split_data[0]
                         body = split_data[1]
-                        return_data = self.httpcomms.send_command(cmd_type='put', command=command, body=json.loads(body))
+                        return_data = self.httpcomms.send_command(cmd_type='put', command=command,
+                                                                  body=json.loads(body))
                         try:
                             for update in json.loads(return_data):
                                 if 'success' in update:
@@ -479,14 +480,16 @@ def register_api_key(ip_address):
     while True:
         try:
             logging.debug("#D2001 Obtaiing API key from: %s" % ip_address)
-            result = json.loads(urllib2.urlopen(urllib2.Request("http://%s/api" % ip_address, json.dumps({"devicetype": "HTTPBridge"})), timeout=4).read())[0]
-            if result['error']:
+            result = json.loads(urllib2.urlopen(urllib2.Request("http://%s/api" % ip_address, json.dumps(
+                {"devicetype": "HTTPBridge"})), timeout=4).read())[0]
+            if 'error' in result:
                 logging.error(json.dumps({"E2001 error": {"description": result["error"]["description"]}}))
                 time.sleep(10)
             else:
                 logging.debug("D2002 API key successfully created: %s" % result["success"]["username"])
                 return result["success"]["username"]
         except Exception as err:
+
             logging.error("E2002 " + err.message)
             return False
 
