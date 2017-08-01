@@ -19,12 +19,14 @@
 import time
 import json
 import copy
+import math
 import socket
 import urllib2
 import logging
 import threading
 from Queue import Queue
 from os.path import expanduser
+from collections import namedtuple
 
 try:
     import argparse
@@ -33,6 +35,134 @@ except ImportError:
 
 # Server version
 server_version = '1.0'
+# Represents a CIE 1931 XY coordinate pair.
+xypoint = namedtuple('XYPoint', ['x', 'y'])
+
+# LivingColors Iris, Bloom, Aura, LightStrips
+gamuta = (
+    xypoint(0.704, 0.296),
+    xypoint(0.2151, 0.7106),
+    xypoint(0.138, 0.08),
+)
+
+# hue a19 bulbs
+gamutb = (
+    xypoint(0.675, 0.322),
+    xypoint(0.4091, 0.518),
+    xypoint(0.167, 0.04),
+)
+
+# hue br30, a19 (gen 3), hue go, lightstrips plus
+gamutc = (
+    xypoint(0.692, 0.308),
+    xypoint(0.17, 0.7),
+    xypoint(0.153, 0.048),
+)
+
+class ColorHelper:
+
+    def __init__(self, gamut=gamutb):
+        self.red = gamut[0]
+        self.lime = gamut[1]
+        self.blue = gamut[2]
+
+    @staticmethod
+    def cross_product(p1, p2):
+        return p1.x * p2.y - p1.y * p2.x
+
+    def check_point_in_lamps_reach(self, p):
+        v1 = xypoint(self.lime.x - self.red.x, self.lime.y - self.red.y)
+        v2 = xypoint(self.blue.x - self.red.x, self.blue.y - self.red.y)
+        q = xypoint(p.x - self.red.x, p.y - self.red.y)
+        s = self.cross_product(q, v2) / self.cross_product(v1, v2)
+        t = self.cross_product(v1, q) / self.cross_product(v1, v2)
+        return (s >= 0.0) and (t >= 0.0) and (s + t <= 1.0)
+
+    @staticmethod
+    def get_closest_point_to_line(a, b, p):
+        ap = xypoint(p.x - a.x, p.y - a.y)
+        ab = xypoint(b.x - a.x, b.y - a.y)
+        ab2 = ab.x * ab.x + ab.y * ab.y
+        ap_ab = ap.x * ab.x + ap.y * ab.y
+        t = ap_ab / ab2
+        if t < 0.0:
+            t = 0.0
+        elif t > 1.0:
+            t = 1.0
+        return xypoint(a.x + ab.x * t, a.y + ab.y * t)
+
+    def get_closest_point_to_point(self, xy_point):
+        pab = self.get_closest_point_to_line(self.red, self.lime, xy_point)
+        pac = self.get_closest_point_to_line(self.blue, self.red, xy_point)
+        pbc = self.get_closest_point_to_line(self.lime, self.blue, xy_point)
+        dab = self.get_distance_between_two_points(xy_point, pab)
+        dac = self.get_distance_between_two_points(xy_point, pac)
+        dbc = self.get_distance_between_two_points(xy_point, pbc)
+        lowest = dab
+        closest_point = pab
+        if dac < lowest:
+            lowest = dac
+            closest_point = pac
+        if dbc < lowest:
+            closest_point = pbc
+        cx = closest_point.x
+        cy = closest_point.y
+        return xypoint(cx, cy)
+
+    @staticmethod
+    def get_distance_between_two_points(one, two):
+        dx = one.x - two.x
+        dy = one.y - two.y
+        return math.sqrt(dx * dx + dy * dy)
+
+    def get_xy_point_from_rgb(self, red, green, blue):
+        r = ((red + 0.055) / (1.0 + 0.055))**2.4 if (red > 0.04045) else (red / 12.92)
+        g = ((green + 0.055) / (1.0 + 0.055))**2.4 if (green > 0.04045) else (green / 12.92)
+        b = ((blue + 0.055) / (1.0 + 0.055))**2.4 if (blue > 0.04045) else (blue / 12.92)
+        x = r * 0.664511 + g * 0.154324 + b * 0.162028
+        y = r * 0.283881 + g * 0.668433 + b * 0.047685
+        z = r * 0.000088 + g * 0.072310 + b * 0.986039
+        cx = x / (x + y + z)
+        cy = y / (x + y + z)
+        xy_point = xypoint(cx, cy)
+        in_reach = self.check_point_in_lamps_reach(xy_point)
+        if not in_reach:
+            xy_point = self.get_closest_point_to_point(xy_point)
+        return xy_point
+
+    def get_rgb_from_xy_and_brightness(self, x, y, bri=1):
+        xy_point = xypoint(x, y)
+        if not self.check_point_in_lamps_reach(xy_point):
+            xy_point = self.get_closest_point_to_point(xy_point)
+        y = bri
+        x = (y / xy_point.y) * xy_point.x
+        z = (y / xy_point.y) * (1 - xy_point.x - xy_point.y)
+        r = x * 1.656492 - y * 0.354851 - z * 0.255038
+        g = -x * 0.707196 + y * 1.655397 + z * 0.036152
+        b = x * 0.051713 - y * 0.121364 + z * 1.011530
+        r, g, b = map(
+            lambda x: (12.92 * x) if (x <= 0.0031308) else ((1.0 + 0.055) * pow(x, (1.0 / 2.4)) - 0.055),
+            [r, g, b]
+        )
+        r, g, b = map(lambda x: max(0, x), [r, g, b])
+        max_component = max(r, g, b)
+        if max_component > 1:
+            r, g, b = map(lambda x: x / max_component, [r, g, b])
+        r, g, b = map(lambda x: int(x * 255), [r, g, b])
+        return r, g, b
+
+
+class Converter:
+    def __init__(self, gamut=gamutb):
+        self.color = ColorHelper(gamut)
+
+    def rgb_to_xy(self, red, green, blue):
+        point = self.color.get_xy_point_from_rgb(red, green, blue)
+        return point.x, point.y
+
+    def xy_to_rgb(self, x, y, bri=1):
+        r, g, b = self.color.get_rgb_from_xy_and_brightness(x, y, bri)
+        return r, g, b
 
 
 class CommunicationServer(threading.Thread):
@@ -164,8 +294,12 @@ class CommunicationServer(threading.Thread):
                     try:
                         command = split_data[0]
                         body = split_data[1]
-                        return_data = self.httpcomms.send_command(cmd_type='put', command=command,
-                                                                  body=json.loads(body))
+                        if len(split_data) == 3:
+                            return_data = self.httpcomms.send_command(cmd_type='put', command=command,
+                                                                      body=json.loads(body), xy=split_data[2])
+                        else:
+                            return_data = self.httpcomms.send_command(cmd_type='put', command=command,
+                                                                      body=json.loads(body))
                         try:
                             for update in json.loads(return_data):
                                 if 'success' in update:
@@ -249,6 +383,7 @@ class HTTPBridge(threading.Thread):
         self.message_queue = savant_queue
         self.lock = threading.Lock()
         self.threads = []
+        self.converter = Converter(gamutc)
         self.store = {"lights": {}, "groups": {}, "sensors": {}, "scenes": {}, "all": {}}
         logging.debug("#D8001 HTTPBridge started")
 
@@ -305,6 +440,18 @@ class HTTPBridge(threading.Thread):
                                     light_data['state']['sat'] = 0
                                 self.message_queue.put("#" + json.dumps(
                                     {"light": {"id": light_id, "info": light_data}}))
+                                if 'xy' in light_data['state']:
+                                    pntx, pnty = light_data['state']['xy']
+                                    red, green, blue = self.converter.xy_to_rgb(pntx, pnty)
+                                    self.message_queue.put("#" + json.dumps(
+                                        {"light_r": {"id": light_id, "red": red}}
+                                    ))
+                                    self.message_queue.put("#" + json.dumps(
+                                        {"light_g": {"id": light_id, "green": green}}
+                                    ))
+                                    self.message_queue.put("#" + json.dumps(
+                                        {"light_b": {"id": light_id, "blue": blue}}
+                                    ))
                         except Exception as err4:
                             logging.error("#E7001: %s" % err4.message)
                     #
@@ -330,6 +477,18 @@ class HTTPBridge(threading.Thread):
                                         group_data['action']['sat'] = 0
                                     self.message_queue.put("#" + json.dumps(
                                         {"group": {"id": group_id, "info": group_data}}))
+                                    if 'xy' in group_data['action']:
+                                        pntx, pnty = group_data['action']['xy']
+                                        red, green, blue = self.converter.xy_to_rgb(pntx, pnty)
+                                        self.message_queue.put("#" + json.dumps(
+                                            {"group_r": {"id": group_id, "red": red}}
+                                        ))
+                                        self.message_queue.put("#" + json.dumps(
+                                            {"group_g": {"id": group_id, "green": green}}
+                                        ))
+                                        self.message_queue.put("#" + json.dumps(
+                                            {"group_b": {"id": group_id, "blue": blue}}
+                                        ))
                             except Exception as err4:
                                 logging.error("#E7002 %s" % err4.message)
                     #
@@ -361,7 +520,7 @@ class HTTPBridge(threading.Thread):
             logging.debug("#D7014 Finished poll. Waiting for next poll.")
             time.sleep(http_poll_interval)
 
-    def send_command(self, cmd_type='get', command='', body=None):
+    def send_command(self, cmd_type='get', command='', body=None, xy=None):
         # Logging section 6000
         if body is None:
             body = {}
@@ -375,10 +534,25 @@ class HTTPBridge(threading.Thread):
                     result = json.loads(urllib2.urlopen("http://%s/api/%s" % (http_ip_address, http_key),
                                                         timeout=4).read())
             elif cmd_type == 'put':
-                if "bri" in body:
+                if xy:
+                    part_a = command.split('/')
+                    if part_a[0] == 'lights':
+                        pntx, pnty = self.store[part_a[0]][part_a[1]]['state']['xy']
+                    else:
+                        pntx, pnty = self.store[part_a[0]][part_a[1]]['action']['xy']
+                    cur_r, cur_g, cur_b = self.converter.xy_to_rgb(pntx, pnty)
+                    if xy == "r":
+                        pntxx, pntyy = self.converter.rgb_to_xy(body['bri'], cur_g, cur_b)
+                    elif xy == "g":
+                        pntxx, pntyy = self.converter.rgb_to_xy(cur_r, body['bri'], cur_b)
+                    elif xy == "b":
+                        pntxx, pntyy = self.converter.rgb_to_xy(cur_r, cur_g, body['bri'])
+                    body = {'on': True, 'xy': [pntxx, pntyy]}
+                elif "bri" in body:
                     if body['bri'] < 1:
                         body['on'] = False
                         body.pop('bri', None)
+
                 request = urllib2.Request("http://%s/api/%s/%s" % (http_ip_address, http_key,
                                                                    command), json.dumps(body))
                 request.get_method = lambda: 'PUT'
@@ -405,39 +579,75 @@ class HTTPBridge(threading.Thread):
         #
         # Lights
         #
-        for light_id in self.store['lights']:
-            light_data = self.store['lights'][light_id]
-            if not light_data['state']['on']:
-                light_data['state']['bri'] = 0
-                light_data['state']['hue'] = 0
-                light_data['state']['sat'] = 0
-            connection.send("#" + json.dumps({"light": {"id": light_id, "info": light_data}}) + '\r\n')
+        try:
+            for light_id in self.store['lights']:
+                light_data = self.store['lights'][light_id]
+                if not light_data['state']['on']:
+                    light_data['state']['bri'] = 0
+                    light_data['state']['hue'] = 0
+                    light_data['state']['sat'] = 0
+                connection.send("#" + json.dumps({"light": {"id": light_id, "info": light_data}}) + '\r\n')
+                if 'xy' in light_data['state']:
+                    pntx, pnty = light_data['state']['xy']
+                    red, green, blue = self.converter.xy_to_rgb(pntx, pnty)
+                    self.message_queue.put("#" + json.dumps(
+                        {"light_r": {"id": light_id, "red": red}}
+                    ))
+                    self.message_queue.put("#" + json.dumps(
+                        {"light_g": {"id": light_id, "green": green}}
+                    ))
+                    self.message_queue.put("#" + json.dumps(
+                        {"light_b": {"id": light_id, "blue": blue}}
+                    ))
+        except KeyError:
+            logging.error('#E5001 No Light info to send')
         #
         # Groups
         #
-        for group_id in self.store['groups']:
-            group_data = self.store['groups'][group_id]
-            if not group_data['action']['on']:
-                group_data['action']['bri'] = 0
-                group_data['action']['hue'] = 0
-                group_data['action']['sat'] = 0
-            connection.send("#" + json.dumps({"group": {"id": group_id, "info": group_data}}) + '\r\n')
+        try:
+            for group_id in self.store['groups']:
+                group_data = self.store['groups'][group_id]
+                if not group_data['action']['on']:
+                    group_data['action']['bri'] = 0
+                    group_data['action']['hue'] = 0
+                    group_data['action']['sat'] = 0
+                connection.send("#" + json.dumps({"group": {"id": group_id, "info": group_data}}) + '\r\n')
+                if 'xy' in group_data['action']:
+                    pntx, pnty = group_data['action']['xy']
+                    red, green, blue = self.converter.xy_to_rgb(pntx, pnty)
+                    self.message_queue.put("#" + json.dumps(
+                        {"group_r": {"id": group_id, "red": red}}
+                    ))
+                    self.message_queue.put("#" + json.dumps(
+                        {"group_g": {"id": group_id, "green": green}}
+                    ))
+                    self.message_queue.put("#" + json.dumps(
+                        {"group_b": {"id": group_id, "blue": blue}}
+                    ))
+        except KeyError:
+            logging.error('#E5002 No Group info to send')
         #
         # Sensors
         #
-        for sensor_id in self.store['sensors']:
-            sensor_data = self.store['sensors'][sensor_id]
-            connection.send("#" + json.dumps({"sensor": {"id": sensor_id, "info": sensor_data}}) + '\r\n')
+        try:
+            for sensor_id in self.store['sensors']:
+                sensor_data = self.store['sensors'][sensor_id]
+                connection.send("#" + json.dumps({"sensor": {"id": sensor_id, "info": sensor_data}}) + '\r\n')
+        except KeyError:
+            logging.error('#E5003 No Sensor info to send')
         #
         # Scenes
         #
-        for scene_id in self.store['all']['scenes']:
-            scene_data = self.store['all']['scenes'][scene_id]
-            if len(scene_data["appdata"]) > 0:
-                connection.send("#" + json.dumps(
-                    {"scene": {"id": scene_id, "info": {"name": scene_data["name"], "lights": ', '
-                        .join(scene_data["lights"])}}}
-                ) + '\r\n')
+        try:
+            for scene_id in self.store['all']['scenes']:
+                scene_data = self.store['all']['scenes'][scene_id]
+                if len(scene_data["appdata"]) > 0:
+                    connection.send("#" + json.dumps(
+                        {"scene": {"id": scene_id, "info": {"name": scene_data["name"], "lights": ', '
+                            .join(scene_data["lights"])}}}
+                    ) + '\r\n')
+        except KeyError:
+            logging.error('#E5004 No Scene info to send')
 
         logging.debug("#D5002 States sent successfully")
 
