@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.6" minimum_component_engine_version="8.0">
+<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.8" minimum_component_engine_version="8.0">
     <notes>
         Obtaining Scene addresses:
         - Upload your configuration to your host and make sure philips hue is connected as stated above
@@ -10,8 +10,15 @@
         To Identify Scenes, the states will be populated with the Scene Code and the Scene name appended. E.G: "Lighting_controller.sceneLights_MEJ8ksJkv9Cp0xE_Relax"
         The Scene Code for this is "MEJ8ksJkv9Cp0xE" and the name is "Relax" Put the Scene Code into Address1 of your data Table.
         The sceneLights state show you the Bulb IDs that are included in the scene. E.G: "1, 5, 11, 12, 17". This helps to identify what room the scene is for
+        
+        RGB Support:
+        To configure RGB sliders, in your data table you must have a seperate entry for R, G and B. Fill out the data table as normal using Address1 as the Light/Group number.
+        Address2 should be filled in as 'r', 'g', or 'b' - LOWER CASE!
+        Currently RGB support is a 'best effort' in terms of slider posistion. All 3 sliders may change when one is updated (due to calculations from RGB to XY and vice versa).
+        Slider may not stay in posistion that it was put in due to the conversions from RGB to XY and vice versa.
 
 		====================== Change Log ==================
+		Version: 2.0.8 Change: RGB Support   Risk: Low Importance: Medium
 		Version: 2.0 Change: Initial Release   Risk: Low Importance: Critical
     </notes>
     <control_interfaces preferred="ip">
@@ -116,6 +123,51 @@
                 <constant type="character">}</constant>
                 <append_data_to_state_names state="groupNumber"/>
             </status_message>
+            <status_message name="Groups_rgb">
+                <constant type="character">{&quot;group_</constant>
+                <data type="character" terminator_type="character" terminator="&quot;">
+                    <update state="color" type="string"></update>
+                </data>
+                <constant type="character">: </constant>
+                <root_object name="none" matches_required="at_least_one" format="json">
+                    <values path="id" matches_required="at_least_one">
+                        <update state="groupNumber" type="integer"></update>
+                    </values>
+                    <values path="red" matches_required="none">
+                        <update state="GroupColor" type="integer"></update>
+                        <value_map match_required="no">
+                            <convert>
+                                <multiply>100</multiply>
+                                <divide>254</divide>
+                                <update state="DT_GroupColor" type="integer"></update>
+                            </convert>
+                        </value_map>
+                    </values>
+                    <values path="green" matches_required="none">
+                        <update state="GroupColor" type="integer"></update>
+                        <value_map match_required="no">
+                            <convert>
+                                <multiply>100</multiply>
+                                <divide>254</divide>
+                                <update state="DT_GroupColor" type="integer"></update>
+                            </convert>
+                        </value_map>
+                    </values>
+                    <values path="blue" matches_required="none">
+                        <update state="GroupColor" type="integer"></update>
+                        <value_map match_required="no">
+                            <convert>
+                                <multiply>100</multiply>
+                                <divide>254</divide>
+                                <update state="DT_GroupColor" type="integer"></update>
+                            </convert>
+                        </value_map>
+                    </values>
+                </root_object>
+                <constant type="character">}</constant>
+                <append_data_to_state_names state="groupNumber"/>
+                <append_data_to_state_names state="color"/>
+            </status_message>
             <status_message name="Lights">
                 <constant type="character">{&quot;light&quot;: </constant>
                 <root_object name="none" matches_required="at_least_one" format="json">
@@ -191,6 +243,52 @@
                 <constant type="character">}</constant>
                 <append_data_to_state_names state="lightNumber"/>
             </status_message>
+            <status_message name="Lights_rgb">
+                <constant type="character">{&quot;light_</constant>
+                <data type="character" terminator_type="character" terminator="&quot;">
+                    <update state="color" type="string"></update>
+                </data>
+                <constant type="character">: </constant>
+                <root_object name="none" matches_required="at_least_one" format="json">
+                    <values path="id" matches_required="at_least_one">
+                        <update state="lightNumber" type="integer"></update>
+                    </values>
+                    <values path="red" matches_required="none">
+                        <update state="LightColor" type="integer"></update>
+                        <value_map match_required="no">
+                            <convert>
+                                <multiply>100</multiply>
+                                <divide>254</divide>
+                                <update state="DT_LightColor" type="integer"></update>
+                            </convert>
+                        </value_map>
+                    </values>
+                    <values path="green" matches_required="none">
+                        <update state="LightColor" type="integer"></update>
+                        <value_map match_required="no">
+                            <convert>
+                                <multiply>100</multiply>
+                                <divide>254</divide>
+                                <update state="DT_LightColor" type="integer"></update>
+                            </convert>
+                        </value_map>
+                    </values>
+                    <values path="blue" matches_required="none">
+                        <update state="LightColor" type="integer"></update>
+                        <value_map match_required="no">
+                            <convert>
+                                <multiply>100</multiply>
+                                <divide>254</divide>
+                                <update state="DT_LightColor" type="integer"></update>
+                            </convert>
+                        </value_map>
+                    </values>
+                </root_object>
+                <constant type="character">}</constant>
+                <append_data_to_state_names state="lightNumber"/>
+                <append_data_to_state_names state="color"/>
+            </status_message>
+            
             <status_message name="Scenes">
                 <constant type="character">{&quot;scene&quot;: </constant>
                 <root_object name="none" matches_required="at_least_one" format="json">
@@ -211,13 +309,13 @@
             <status_message name="Sensors">
                 <constant type="character">{&quot;sensor&quot;: </constant>
                 <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="//id" matches_required="all">
+                    <values path="id" matches_required="all">
                         <update state="sensorNumber" type="integer"></update>
                     </values>
-                    <values path="//name" matches_required="none">
+                    <values path="info/name" matches_required="all">
                         <update state="sensorName" type="string"></update>
                     </values>
-                    <values path="//temperature" matches_required="none">
+                    <values path="info/state/temperature" matches_required="all">
                         <value_map match_required="no">
                             <convert>
                                 <divide>100</divide>
@@ -225,19 +323,19 @@
                             </convert>
                         </value_map>
                     </values>
-                    <values path="//lastupdated" matches_required="none">
+                    <values path="info/state/lastupdated" matches_required="all">
                         <update state="sensorUpdated" type="string"></update>
                     </values>
-                    <values path="//dark" matches_required="none">
+                    <values path="info/state/dark" matches_required="all">
                         <update state="sensorIsDark" type="boolean"></update>
                     </values>
-                    <values path="//daylight" matches_required="none">
+                    <values path="info/state/daylight" matches_required="all">
                         <update state="sensorIsDaylight" type="boolean"></update>
                     </values>
-                    <values path="//lightlevel" matches_required="none">
+                    <values path="info/state/lightlevel" matches_required="all">
                         <update state="sensorCurrentLightLevel" type="integer"></update>
                     </values>
-                    <values path="//presence" matches_required="none">
+                    <values path="info/state/presence" matches_required="all">
                         <update state="sensorHasPresence" type="boolean"></update>
                     </values>
                 </root_object>
@@ -289,7 +387,7 @@
             </action>
             <action name="DimmerSet">
                 <action_argument name="Address1" note="Bulb Number (1-50)"/>
-                <action_argument name="Address2" note=""/>
+                <action_argument name="Address2" note="R, G or B if using RGB"/>
                 <action_argument name="Address3" note=""/>
                 <action_argument name="Address4" note=""/>
                 <action_argument name="Address5" note=""/>
@@ -310,7 +408,8 @@
                             <parameter parameter_data_type="character" state_variable="math"/>
                             <parameter parameter_data_type="character">, &quot;transitiontime&quot;: </parameter>
                             <parameter parameter_data_type="character" action_argument="FadeTime"/>
-                            <parameter parameter_data_type="character">}</parameter>
+                            <parameter parameter_data_type="character">}%</parameter>
+                            <parameter parameter_data_type="character" action_argument="Address2"/>
                         </parameter_list>
                         <delay ms_delay="50"/>
                     </command>
@@ -398,7 +497,7 @@
             <action name="RFDimmerSet">
                 <!-- Group Brightness -->
                 <action_argument name="Address1" note="Group Number"/>
-                <action_argument name="Address2" note=""/>
+                <action_argument name="Address2" note="R, G or B if using RGB"/>
                 <action_argument name="Address3" note=""/>
                 <action_argument name="Address4" note=""/>
                 <action_argument name="Address5" note=""/>
@@ -419,7 +518,8 @@
                             <parameter parameter_data_type="character" state_variable="math"/>
                             <parameter parameter_data_type="character">, &quot;transitiontime&quot;: </parameter>
                             <parameter parameter_data_type="character" action_argument="FadeTime"/>
-                            <parameter parameter_data_type="character">}</parameter>
+                            <parameter parameter_data_type="character">}%</parameter>
+                            <parameter parameter_data_type="character" action_argument="Address2"/>
                         </parameter_list>
                         <delay ms_delay="50"/>
                     </command>
@@ -634,7 +734,7 @@
                     </valueSource>
                 </slider_representation>
             </entity>
-<!--            <entity name="RGB" address_components="2">
+            <entity name="Bulb RGB" address_components="2">
                 <slider_representation>
                     <press_action name="DimmerSet"/>
                     <valueSource name="DimmerLevel">
@@ -642,7 +742,16 @@
                         <unique_identifier name="RGB" address_component="2" format="%d"/>
                     </valueSource>
                 </slider_representation>
-            </entity>-->
+            </entity>
+            <entity name="Group RGB" address_components="2">
+                <slider_representation>
+                    <press_action name="RFDimmerSet"/>
+                    <valueSource name="DimmerLevel">
+                        <unique_identifier name="CurrentGroupNumber" address_component="1" format="%d"/>
+                        <unique_identifier name="RGB" address_component="2" format="%d"/>
+                    </valueSource>
+                </slider_representation>
+            </entity>
         </resource_component_actions>
         <custom_component_actions>
             <action name="TurnLightOn">
