@@ -16,6 +16,7 @@
         Address2 should be filled in as 'r', 'g', or 'b' - LOWER CASE!
         Currently RGB support is a 'best effort' in terms of slider posistion. All 3 sliders may change when one is updated (due to calculations from RGB to XY and vice versa).
         Slider may not stay in posistion that it was put in due to the conversions from RGB to XY and vice versa.
+        You will still need a Dimmer entity to control the brightness of the light or group. This makes a total of 4 entries per group/bulb 
 
 		====================== Change Log ==================
 		Version: 2.0.8 Change: RGB Support   Risk: Low Importance: Medium
@@ -387,7 +388,7 @@
             </action>
             <action name="DimmerSet">
                 <action_argument name="Address1" note="Bulb Number (1-50)"/>
-                <action_argument name="Address2" note="R, G or B if using RGB"/>
+                <action_argument name="Address2" note="r, g or b if using RGB"/>
                 <action_argument name="Address3" note=""/>
                 <action_argument name="Address4" note=""/>
                 <action_argument name="Address5" note=""/>
@@ -497,7 +498,7 @@
             <action name="RFDimmerSet">
                 <!-- Group Brightness -->
                 <action_argument name="Address1" note="Group Number"/>
-                <action_argument name="Address2" note="R, G or B if using RGB"/>
+                <action_argument name="Address2" note="r, g or b if using RGB"/>
                 <action_argument name="Address3" note=""/>
                 <action_argument name="Address4" note=""/>
                 <action_argument name="Address5" note=""/>
