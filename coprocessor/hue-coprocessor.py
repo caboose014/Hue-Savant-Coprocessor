@@ -517,14 +517,14 @@ class HTTPBridge(threading.Thread):
         result = ''
         if body is None:
             body = {}
-        if verbose:
-            logger.debug("#D9455 Sending command to controller")
         try:
             if cmd_type == 'get':
                 if command:
                     try:
                         result = json.loads(urllib2.urlopen("http://%s/api/%s/%s"
                                                             % (http_ip_address, http_key, command), timeout=4).read())
+                        if verbose:
+                            logger.debug("#D9455 Sent command (%s) to controller" % command)
                     except urllib2.HTTPError:
                         logger.error("#E1823 Command ('%s') HTTP Error" % command)
                     except TypeError:
@@ -535,12 +535,14 @@ class HTTPBridge(threading.Thread):
                     try:
                         result = json.loads(urllib2.urlopen("http://%s/api/%s" % (http_ip_address, http_key),
                                                             timeout=4).read())
+                        if verbose:
+                            logger.debug("#D5451 Command ('State Poll') sent successfully")
                     except urllib2.HTTPError:
-                        logger.error("#E9087 Command ('%s') HTTP Error" % command)
+                        logger.error("#E9087 Command ('State Poll') HTTP Error")
                     except TypeError:
-                        logger.error("#E8721 Command ('%s') JSON Type Error" % command)
+                        logger.error("#E8721 Command ('State Poll') JSON Type Error")
                     except Exception as err:
-                        logger.error("#E9031 Command ('%s') Caught an error: %s" % (command, err.args))
+                        logger.error("#E9031 Command (State Poll') Caught an error: %s" % err.args)
             elif cmd_type == 'put':
                 if xy:
                     part_a = command.split('/')
@@ -565,6 +567,8 @@ class HTTPBridge(threading.Thread):
                                                                        command), json.dumps(body))
                     request.get_method = lambda: 'PUT'
                     result = urllib2.urlopen(request, timeout=4).read()
+                    if verbose:
+                        logger.debug("#D7207 Sent command (%s - %s) to controller" % (command, json.dumps(body)))
                 except urllib2.HTTPError:
                     logger.error("#E5411 Command ('%s') HTTP Error" % command)
                 except ValueError:
@@ -579,6 +583,8 @@ class HTTPBridge(threading.Thread):
                         result = json.loads(urllib2.urlopen(urllib2.Request(
                             "http://%s/api/%s/%s" % (http_ip_address, http_key, command), json.dumps(body)),
                             timeout=4).read())
+                        if verbose:
+                            logger.debug("#D7492 Sent command (%s - %s) to controller" % (command, json.dumps(body)))
                     except urllib2.HTTPError:
                         logger.error("#E6456 Command ('%s') HTTP Error" % command)
                     except ValueError:
@@ -596,13 +602,13 @@ class HTTPBridge(threading.Thread):
                         if verbose:
                             logger.debug("#D3329 Command ('State Poll') sent successfully")
                     except urllib2.HTTPError:
-                        logger.error("#E7751 Command ('%s') HTTP Error" % command)
+                        logger.error("#E7751 Command ('State Poll') HTTP Error")
                     except ValueError:
-                        logger.error("#E4494 Command ('%s') JSON Value Error" % command)
+                        logger.error("#E4494 Command ('State Poll') JSON Value Error")
                     except TypeError:
-                        logger.error("#E9679 Command ('%s') JSON Type Error" % command)
+                        logger.error("#E9679 Command ('State Poll') JSON Type Error")
                     except Exception as err:
-                        logger.error("#E7958 Command ('%s') Caught an error: %s" % (command, err.args))
+                        logger.error("#E7958 Command ('State Poll') Caught an error: %s" % err.args)
             return result
         except Exception as err:
             logger.error('#E4933 Error sending Command. HTTP Request failed. %s' % err.args)
