@@ -167,7 +167,6 @@ class Converter:
 
 
 class CommunicationServer(threading.Thread):
-    # Logging section 12000
     def __init__(self, message_queue, http_communications):
         threading.Thread.__init__(self)
         connection_loop = True
@@ -200,7 +199,6 @@ class CommunicationServer(threading.Thread):
         logger.debug("#D8461 Savant communications server started successfully")
 
     def run(self):
-        # Logging section 11000
         logger.debug("#D9621 setting up the message queue processor")
         queue_processor = threading.Thread(target=self.process_queue, args=())
         queue_processor.setDaemon(True)
@@ -227,7 +225,6 @@ class CommunicationServer(threading.Thread):
         self.sock.close()
 
     def process_queue(self):
-        # Logging section 10000
         logger.debug("#D4268 Message queue processor started")
         while True:
             message = self.message_queue.get()
@@ -247,7 +244,7 @@ class CommunicationServer(threading.Thread):
                         client.send(message + "\r\n")
                     except TypeError:
                         logger.debug("#D6116 Message format not right as string, formatting for JSON. "
-                                      "Sending to client")
+                                     "Sending to client")
                         client.send(json.dumps(str(message)) + "\r\n")
         self.lock.acquire()
         logger.debug("#D9720 Removing message processor from threads array")
@@ -256,7 +253,6 @@ class CommunicationServer(threading.Thread):
         logger.debug("#D5465 Finishing message processor thread")
 
     def listen_messages(self, connection, client_address):
-        # Logging section 9000
         logger.info('#E8007 %s connected.' % client_address[0])
         self.lock.acquire()
         logger.debug("#E4220 Adding new client %s to threads array" % client_address[0])
@@ -282,7 +278,7 @@ class CommunicationServer(threading.Thread):
                 break
             if data == 'close' or data == 'exit' or data == 'quit':
                 logger.debug("#D1259 Received close, exit, or quit string from client %s. "
-                              "Closing client connection" % client_address[0])
+                             "Closing client connection" % client_address[0])
                 break
             elif data == '':
                 logger.debug("#D3713 Received empty data string from client %s" % client_address[0])
@@ -351,25 +347,25 @@ class CommunicationServer(threading.Thread):
                                 {command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
                     except TypeError:
                         logger.debug("#D6939 TypeError, could not process received data from client %s"
-                                      % client_address[0])
+                                     % client_address[0])
                         connection.send('#E0658 TypeError, could not process received data\r\n')
 
                 except ValueError:
                     logger.debug("#D2057 ValueError, could not process received data from client %s"
-                                  % client_address[0])
+                                 % client_address[0])
                     connection.send('#E7804 ValueError, could not process received data\r\n')
                 except TypeError:
                     logger.debug("#D9011 TypeError, could not process received data from client %s"
-                                  % client_address[0])
+                                 % client_address[0])
                     connection.send('#E7223 TypeError, could not process received data\r\n')
                 except Exception as err2:
-                    logger.error('#E3017 %s\r\n' % err2)
-                    connection.send('#E8408 %s\r\n' % err2)
+                    logger.error('#E3017 %s\r\n' % err2.args)
+                    connection.send('#E8408 %s\r\n' % err2.args)
 
         logger.debug("#D4024 Client %s thread closing" % client_address[0])
         self.lock.acquire()
         logger.debug("#D4694 Removing client %s from clients array, and thread from threads array"
-                      % client_address[0])
+                     % client_address[0])
         self.clients.remove(connection)
         self.threads.remove(threading.currentThread())
         self.lock.release()
@@ -401,18 +397,17 @@ class HTTPBridge(threading.Thread):
         logger.debug("#D2549 Device poller started")
         while True:
             try:
-                logger.debug("#D4899 Asking for device statuses from %s" % http_ip_address)
+                if verbose:
+                    logger.debug("#D4899 Asking for device statuses from %s" % http_ip_address)
                 result = self.send_command()
-                logger.debug("#D2547 Received update successfully. Processing data...")
-
-                try:
-                    del result['config']
-                    del result['resourcelinks']
-                    del result['rules']
-                    # del result['scenes']
-                    del result['schedules']
-                except KeyError:
-                    pass
+                if verbose:
+                    logger.debug("#D2547 Received update successfully. Processing data...")
+                removekeys = ['config', 'resourcelinks', 'rules', 'schedules']
+                for removekey in removekeys:
+                    try:
+                        del result[removekey]
+                    except KeyError:
+                        pass
 
                 if not self.store['all'] == result:
                     logger.debug("#D8176 HTTP Data chanced since last poll")
@@ -429,10 +424,10 @@ class HTTPBridge(threading.Thread):
                         try:
                             if not self.store["lights"][light_id] == light_data:
                                 logger.debug("#D2000 Light '%s' information has changed"
-                                              % light_id)
+                                             % light_id)
                                 self.store["lights"][light_id] = copy.deepcopy(light_data)
                                 logger.debug("#D1820 Notifying all clients of level change for light '%s'"
-                                              % light_id)
+                                             % light_id)
                                 if not light_data['state']['on']:
                                     light_data['state']['bri'] = 0
                                     light_data['state']['hue'] = 0
@@ -452,7 +447,7 @@ class HTTPBridge(threading.Thread):
                                         {"light_b": {"id": light_id, "blue": blue}}
                                     ))
                         except Exception as err4:
-                            logger.error("#E6663: %s" % err4.message)
+                            logger.error("#E6663: %s" % err4.args)
                     #
                     # Groups
                     #
@@ -461,15 +456,15 @@ class HTTPBridge(threading.Thread):
                             group_data = result['groups'][group_id]
                             if group_id not in self.store["groups"]:
                                 logger.debug("#D2418 Found a new GroupID '%s', adding it to monitored groups"
-                                              % group_id)
+                                             % group_id)
                                 self.store["groups"][group_id] = copy.deepcopy(group_data)
                             try:
                                 if not self.store["groups"][group_id] == group_data:
                                     logger.debug("#D9999 Group '%s' information has changed"
-                                                  % group_id)
+                                                 % group_id)
                                     self.store["groups"][group_id] = copy.deepcopy(group_data)
                                     logger.debug("#D0908 Notifying all clients of level change for group '%s'"
-                                                  % group_id)
+                                                 % group_id)
                                     if not group_data['action']['on']:
                                         group_data['action']['bri'] = 0
                                         group_data['action']['hue'] = 0
@@ -489,7 +484,7 @@ class HTTPBridge(threading.Thread):
                                             {"group_b": {"id": group_id, "blue": blue}}
                                         ))
                             except Exception as err4:
-                                logger.error("#E7134 %s" % err4.message)
+                                logger.error("#E7134 %s" % err4.args)
                     #
                     # Sensors
                     #
@@ -498,39 +493,54 @@ class HTTPBridge(threading.Thread):
                             sensor_data = result['sensors'][sensor_id]
                             if sensor_id not in self.store["sensors"]:
                                 logger.debug("#D0278 Found a new SensorID '%s', adding it to monitored "
-                                              "sensors" % sensor_id)
+                                             "sensors" % sensor_id)
                                 self.store["sensors"][sensor_id] = copy.deepcopy(sensor_data)
                             try:
                                 if not self.store["sensors"][sensor_id] == sensor_data:
                                     logger.debug("#D1170 Sensor '%s' information has changed"
-                                                  % sensor_id)
+                                                 % sensor_id)
                                     self.store["sensors"][sensor_id] = copy.deepcopy(sensor_data)
                                     logger.debug("#D4421 Notifying all clients of level change for sensor '%s'"
-                                                  % sensor_id)
+                                                 % sensor_id)
                                     self.message_queue.put("#" + json.dumps({
                                         "sensor": {"id": sensor_id, "info": sensor_data}}))
                             except Exception as err4:
-                                logger.error("#E3942 %s" % err4.message)
+                                logger.error("#E3942 %s" % err4.args)
 
             except Exception as err:
-                logger.error("#E9155 %s" % err)
-
-            logger.debug("#D5604 Finished poll. Waiting for next poll.")
+                logger.error("#E9155 %s" % err.args)
+            if verbose:
+                logger.debug("#D5604 Finished poll. Waiting for next poll.")
             time.sleep(http_poll_interval)
 
     def send_command(self, cmd_type='get', command='', body=None, xy=None):
-        # Logging section 6000
+        result = ''
         if body is None:
             body = {}
-        logger.debug("#D9455 Sending command to controller")
+        if verbose:
+            logger.debug("#D9455 Sending command to controller")
         try:
             if cmd_type == 'get':
                 if command:
-                    result = json.loads(urllib2.urlopen("http://%s/api/%s/%s" % (http_ip_address, http_key, command),
-                                                        timeout=4).read())
+                    try:
+                        result = json.loads(urllib2.urlopen("http://%s/api/%s/%s"
+                                                            % (http_ip_address, http_key, command), timeout=4).read())
+                    except urllib2.HTTPError:
+                        logger.error("#E1823 Command ('%s') HTTP Error" % command)
+                    except TypeError:
+                        logger.error("#E6378 Command ('%s') JSON Type Error" % command)
+                    except Exception as err:
+                        logger.error("#E0301 Command ('%s') Caught an error: %s" % (command, err.args))
                 else:
-                    result = json.loads(urllib2.urlopen("http://%s/api/%s" % (http_ip_address, http_key),
-                                                        timeout=4).read())
+                    try:
+                        result = json.loads(urllib2.urlopen("http://%s/api/%s" % (http_ip_address, http_key),
+                                                            timeout=4).read())
+                    except urllib2.HTTPError:
+                        logger.error("#E9087 Command ('%s') HTTP Error" % command)
+                    except TypeError:
+                        logger.error("#E8721 Command ('%s') JSON Type Error" % command)
+                    except Exception as err:
+                        logger.error("#E9031 Command ('%s') Caught an error: %s" % (command, err.args))
             elif cmd_type == 'put':
                 if xy:
                     part_a = command.split('/')
@@ -550,29 +560,55 @@ class HTTPBridge(threading.Thread):
                     if body['bri'] < 1:
                         body['on'] = False
                         body.pop('bri', None)
-
-                request = urllib2.Request("http://%s/api/%s/%s" % (http_ip_address, http_key,
-                                                                   command), json.dumps(body))
-                request.get_method = lambda: 'PUT'
-                result = urllib2.urlopen(request, timeout=4).read()
+                try:
+                    request = urllib2.Request("http://%s/api/%s/%s" % (http_ip_address, http_key,
+                                                                       command), json.dumps(body))
+                    request.get_method = lambda: 'PUT'
+                    result = urllib2.urlopen(request, timeout=4).read()
+                except urllib2.HTTPError:
+                    logger.error("#E5411 Command ('%s') HTTP Error" % command)
+                except ValueError:
+                    logger.error("#E0786 Command ('%s') JSON Value Error" % command)
+                except TypeError:
+                    logger.error("#E8080 Command ('%s') JSON Type Error" % command)
+                except Exception as err:
+                    logger.error("#E4663 Command ('%s') Caught an error: %s" % (command, err.args))
             else:
                 if command:
-                    result = json.loads(urllib2.urlopen(urllib2.Request(
-                        "http://%s/api/%s/%s" % (http_ip_address, http_key, command), json.dumps(body)),
-                        timeout=4).read())
+                    try:
+                        result = json.loads(urllib2.urlopen(urllib2.Request(
+                            "http://%s/api/%s/%s" % (http_ip_address, http_key, command), json.dumps(body)),
+                            timeout=4).read())
+                    except urllib2.HTTPError:
+                        logger.error("#E6456 Command ('%s') HTTP Error" % command)
+                    except ValueError:
+                        logger.error("#E5525 Command ('%s') JSON Value Error" % command)
+                    except TypeError:
+                        logger.error("#E2833 Command ('%s') JSON Type Error" % command)
+                    except Exception as err:
+                        logger.error("#E2030 Command ('%s') Caught an error: %s" % (command, err.args))
+                    if verbose:
+                        logger.debug("#D1701 Command ('%s') sent successfully" % command)
                 else:
-                    result = json.loads(urllib2.urlopen(urllib2.Request(
-                        "http://%s/api/%s" % (http_ip_address, http_key), json.dumps(body)), timeout=4).read())
-
-            logger.debug("#D1701 Command ('%s') sent successfully" % command)
+                    try:
+                        result = json.loads(urllib2.urlopen(urllib2.Request(
+                            "http://%s/api/%s" % (http_ip_address, http_key), json.dumps(body)), timeout=4).read())
+                        if verbose:
+                            logger.debug("#D3329 Command ('State Poll') sent successfully")
+                    except urllib2.HTTPError:
+                        logger.error("#E7751 Command ('%s') HTTP Error" % command)
+                    except ValueError:
+                        logger.error("#E4494 Command ('%s') JSON Value Error" % command)
+                    except TypeError:
+                        logger.error("#E9679 Command ('%s') JSON Type Error" % command)
+                    except Exception as err:
+                        logger.error("#E7958 Command ('%s') Caught an error: %s" % (command, err.args))
             return result
-
         except Exception as err:
-            logger.error('#E4933 Error sending Command. HTTP Request failed. %s' % err)
+            logger.error('#E4933 Error sending Command. HTTP Request failed. %s' % err.args)
             self.message_queue.put("#" + "Invalid HTTP command")
 
     def new_connect(self, connection):
-        # Logging section 5000
         logger.debug("#E1154 New client connected. Sending all device states")
         #
         # Lights
@@ -599,6 +635,8 @@ class HTTPBridge(threading.Thread):
                     ))
         except KeyError:
             logger.error('#E4092 No Light info to send')
+        except Exception as err:
+            logger.error("#E9683 Sending Lights to client caught an error: %s" % err.args)
         #
         # Groups
         #
@@ -624,6 +662,8 @@ class HTTPBridge(threading.Thread):
                     ))
         except KeyError:
             logger.error('#E1435 No Group info to send')
+        except Exception as err:
+            logger.error("#E7062 Sending Group to client caught an error: %s" % err.args)
         #
         # Sensors
         #
@@ -633,6 +673,8 @@ class HTTPBridge(threading.Thread):
                 connection.send("#" + json.dumps({"sensor": {"id": sensor_id, "info": sensor_data}}) + '\r\n')
         except KeyError:
             logger.error('#E6132 No Sensor info to send')
+        except Exception as err:
+            logger.error("#E2635 Sending Sensors to client caught an error: %s" % err.args)
         #
         # Scenes
         #
@@ -640,14 +682,14 @@ class HTTPBridge(threading.Thread):
             for scene_id in self.store['all']['scenes']:
                 scene_data = self.store['all']['scenes'][scene_id]
                 if len(scene_data["appdata"]) > 0:
-                    connection.send("#" + json.dumps(
-                        {"scene": {"id": scene_id, "info": {"name": scene_data["name"], "lights": ', '
-                            .join(scene_data["lights"])}}}
-                    ) + '\r\n')
+                    connection.send("#" + json.dumps({"scene": {"id": scene_id, "info": {
+                        "name": scene_data["name"], "lights": ', '.join(scene_data["lights"])}}}) + '\r\n')
         except KeyError:
             logger.error('#E0652 No Scene info to send')
+        except Exception as err:
+            logger.error("#E4272 Sending Scenes to client caught an error: %s" % err.args)
 
-        logger.debug("#D3476 States sent successfully")
+        logger.debug("#D3476 Finished sending information to client")
 
 
 def run():
@@ -757,6 +799,8 @@ if __name__ == '__main__':
                         required=False, default="INFO")
     parser.add_argument('-d', '--debug', help="Set Logging Level to DEBUG",
                         required=False, action='store_true')
+    parser.add_argument('-v', '--verbose', help="Set DEBUG logging to VERBOSE",
+                        required=False, action='store_true')
     parser.add_argument('-f', '--file', help="Logging File path",
                         required=False, default="%s/http-savant.log" % home)
     parser.add_argument('-P', '--port', help="Port to start the telnet server on (for Savant communication)",
@@ -776,6 +820,7 @@ if __name__ == '__main__':
                         required=False, default=['SML001', 'Room'], nargs='+')
     args = parser.parse_args()
     log_exists = os.path.isfile(args.file)
+    verbose = False
     # Setup the logging engine
     if not args.debug:
         numeric_level = getattr(logging, args.log.upper(), None)
@@ -783,10 +828,10 @@ if __name__ == '__main__':
             raise ValueError('Invalid log level: %s' % args.log)
     else:
         numeric_level = 10
-
+        if args.verbose:
+            verbose = True
     logger = logging.getLogger("savant_coprocessor")
     logformat = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
-    # log_rotate = logging.handlers.TimedRotatingFileHandler(args.file, when='D', interval=1, backupCount=7)
     log_rotate = logging.handlers.RotatingFileHandler(args.file, maxBytes=10*1024*1024, backupCount=5)
     logger.setLevel(numeric_level)
     log_rotate.setFormatter(logformat)
