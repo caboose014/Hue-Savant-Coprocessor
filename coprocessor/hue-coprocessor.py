@@ -415,7 +415,7 @@ class HTTPBridge(threading.Thread):
 
     def http_poller(self):
         logger.debug("#D2549 Device poller started")
-        logger.debug("#D0890 Poller PID: %s" % threading.currentThread())
+        logger.debug("#D0890 Poller PID: %s" % threading.currentThread().ident)
         while True:
             try:
                 if verbose:
