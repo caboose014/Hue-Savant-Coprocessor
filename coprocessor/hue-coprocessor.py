@@ -392,9 +392,30 @@ class HTTPBridge(threading.Thread):
         self.lock.acquire()
         self.threads.append(poller)
         self.lock.release()
+        logger.debug("#D0868 Setting up poller watcher")
+        watcher = threading.Thread(target=self.thread_watcher, args=())
+        watcher.setDaemon(True)
+        watcher.start()
+
+    def thread_watcher(self):
+        while True:
+            for thread in self.threads:
+                if not thread.isAlive():
+                    logger.error("#E2052 HTTP Poller is not alive!!")
+                    self.threads.remove(thread)
+                    logger.debug("#D0202 Setting up device poller")
+                    poller = threading.Thread(target=self.http_poller, args=())
+                    poller.setDaemon(True)
+                    poller.start()
+                    logger.debug("#D2399 Adding device poller thread to threads array")
+                    self.lock.acquire()
+                    self.threads.append(poller)
+                    self.lock.release()
+            time.sleep(30)
 
     def http_poller(self):
         logger.debug("#D2549 Device poller started")
+        logger.debug("#D0890 Poller PID: %s" % threading.currentThread())
         while True:
             try:
                 if verbose:
@@ -512,6 +533,7 @@ class HTTPBridge(threading.Thread):
             if verbose:
                 logger.debug("#D5604 Finished poll. Waiting for next poll.")
             time.sleep(http_poll_interval)
+        logger.debug("D2294 HTTP Poller has exited")
 
     def send_command(self, cmd_type='get', command='', body=None, xy=None):
         result = ''
