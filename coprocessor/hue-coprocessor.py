@@ -171,6 +171,7 @@ class CommunicationServer(threading.Thread):
         threading.Thread.__init__(self)
         connection_loop = True
         self.running = True
+        self.queue_test = False
         self.threads = []
         self.clients = []
         self.lock = threading.Lock()
@@ -190,12 +191,12 @@ class CommunicationServer(threading.Thread):
                 logger.debug("#D9634 Binding successful, lets listen to what it says")
                 self.sock.listen(1)
                 connection_loop = False
-            except socket.error, socket_error:
-                logger.error("#E6535 We have a socket error. %s" % socket_error)
+            except socket.error, socket.error:
+                logger.error("#E6535 We have a socket error. %s" % socket.error)
                 time.sleep(10)
-            except Exception as err1:
+            except Exception, err:
                 self.message_queue.put('shutdown')
-                logger.error("#I7274 %s" % err1.message)
+                logger.error("#E7274 %s" % err, exc_info=True)
         logger.debug("#D8461 Savant communications server started successfully")
 
     def run(self):
@@ -210,6 +211,10 @@ class CommunicationServer(threading.Thread):
         self.lock.release()
         logger.debug("#D7604 Starting the HTTP communications server")
         self.httpcomms.start()
+        logger.debug("#D6547 Setting up queue watcher")
+        watcher = threading.Thread(target=self.queue_watcher, args=())
+        watcher.setDaemon(True)
+        watcher.start()
         while self.running:
             logger.debug("#D2395 Setting up a Savant connection listener")
             listen_process = threading.Thread(target=self.listen_messages, args=(self.sock.accept()))
@@ -220,32 +225,54 @@ class CommunicationServer(threading.Thread):
             self.lock.acquire()
             self.threads.append(listen_process)
             self.lock.release()
-
         logger.info("#I0472 Closing CommunicationsServer")
         self.sock.close()
 
+    def queue_watcher(self):
+        global server_running
+        while True:
+            self.message_queue.put("queue_test")
+            time.sleep(5)
+            if self.queue_test:
+                logger.debug("#D5831 Message queue responded and should be working")
+            else:
+                server_running = False
+                logger.warning("W5297 Server needs to be restarted, Message Queue has stopped responding")
+            time.sleep(300)
+
     def process_queue(self):
+        global server_running
         logger.debug("#D4268 Message queue processor started")
         while True:
-            message = self.message_queue.get()
-            logger.debug("#D8480 Message received: %s" % message)
-            if message == 'shutdown':
-                logger.debug("#D2738 Message 'Shutdown' received. Closing communications servers.")
-                self.running = False
-                logger.debug("#D1842 Force a new connection to break connection listener")
-                sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock2.connect(self.server_address)
-                time.sleep(1)
-                break
-            else:
-                for client in self.clients:
-                    try:
-                        logger.debug("#D2710 Sending received message to client")
-                        client.send(message + "\r\n")
-                    except TypeError:
-                        logger.debug("#D6116 Message format not right as string, formatting for JSON. "
-                                     "Sending to client")
-                        client.send(json.dumps(str(message)) + "\r\n")
+            try:
+                message = self.message_queue.get()
+                logger.debug("#D8480 Message received: %s" % message)
+                if message == 'shutdown':
+                    logger.debug("#D2738 Message 'Shutdown' received. Closing communications servers.")
+                    self.running = False
+                    logger.debug("#D1842 Force a new connection to break connection listener")
+                    sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock2.connect(self.server_address)
+                    time.sleep(1)
+                    break
+                if message == 'restart':
+                    logger.debug("#D2492 Restart requested from message queue")
+                    server_running = False
+                elif message == 'queue_test':
+                    if verbose:
+                        logger.debug("#D8296 Responding to queue test with true")
+                    self.queue_test = True
+                else:
+                    for client in self.clients:
+                        try:
+                            logger.debug("#D2710 Sending received message to client")
+                            client.send(message + "\r\n")
+                        except TypeError:
+                            logger.debug("#D6116 Message format not right as string, formatting for JSON. "
+                                         "Sending to client")
+                            client.send(json.dumps(str(message)) + "\r\n")
+            except Exception, err:
+                logger.error("#E5461 Message Queue had a problem processing a message: %s" % err, exc_info=True)
         self.lock.acquire()
         logger.debug("#D9720 Removing message processor from threads array")
         self.threads.remove(threading.currentThread())
@@ -253,124 +280,132 @@ class CommunicationServer(threading.Thread):
         logger.debug("#D5465 Finishing message processor thread")
 
     def listen_messages(self, connection, client_address):
-        logger.info('#E8007 %s connected.' % client_address[0])
-        self.lock.acquire()
-        logger.debug("#E4220 Adding new client %s to threads array" % client_address[0])
-        self.clients.append(connection)
-        self.lock.release()
-        logger.debug("#D5767 Sending welcome message to client %s" % client_address[0])
-        connection.send("#" + 'J14 HTTP-Savant Relay v%s\r\n' % server_version)
-        time.sleep(2)
-        logger.debug("#D8619 Pushing all device states to client %s" % client_address[0])
-        self.httpcomms.new_connect(connection)
-        while True:
-            datarecv = connection.recv(1024)
-            logger.debug("#D4893 Received data from %s" % client_address[0])
-            if not datarecv:
-                logger.debug("#D0308 Invalid data received from %s. Closing client connection" % client_address[0])
-                break
-            datarecv = datarecv.replace('\n', '')
-            datarecv = datarecv.replace('\r', '')
-            data = datarecv
-            if data.encode('hex') == 'fffb06':
-                logger.debug("#D3612 Received ^C from client %s. Closing client connection" % client_address[0])
-                connection.close()
-                break
-            if data == 'close' or data == 'exit' or data == 'quit':
-                logger.debug("#D1259 Received close, exit, or quit string from client %s. "
-                             "Closing client connection" % client_address[0])
-                break
-            elif data == '':
-                logger.debug("#D3713 Received empty data string from client %s" % client_address[0])
-                connection.send("#32" + 'Empty Command String\r\n')
-            else:
-                try:
-                    logger.debug("#D5443 Received command from client: %s" % client_address[0])
-                    command = data
-                    split_data = command.split('%')
+        try:
+            logger.info('#E8007 %s connected.' % client_address[0])
+            self.lock.acquire()
+            logger.debug("#E4220 Adding new client %s to threads array" % client_address[0])
+            self.clients.append(connection)
+            self.lock.release()
+            logger.debug("#D5767 Sending welcome message to client %s" % client_address[0])
+            connection.send("#" + 'J14 HTTP-Savant Relay v%s\r\n' % server_version)
+            time.sleep(2)
+            logger.debug("#D8619 Pushing all device states to client %s" % client_address[0])
+            self.httpcomms.new_connect(connection)
+            while True:
+                datarecv = connection.recv(1024)
+                logger.debug("#D4893 Received data from %s" % client_address[0])
+                if not datarecv:
+                    logger.debug("#D0308 Invalid data received from %s. Closing client connection" % client_address[0])
+                    break
+                datarecv = datarecv.replace('\n', '')
+                datarecv = datarecv.replace('\r', '')
+                data = datarecv
+                if data.encode('hex') == 'fffb06':
+                    logger.debug("#D3612 Received ^C from client %s. Closing client connection" % client_address[0])
+                    connection.close()
+                    break
+                if data == 'close' or data == 'exit' or data == 'quit':
+                    logger.debug("#D1259 Received close, exit, or quit string from client %s. "
+                                 "Closing client connection" % client_address[0])
+                    break
+                if data == 'restart':
+                    logger.debug("#D6629 Received restart string from client %s. "
+                                 "Requesting server restart" % client_address[0])
+                    self.message_queue.put('restart')
+                    break
+                elif data == '':
+                    logger.debug("#D3713 Received empty data string from client %s" % client_address[0])
+                    connection.send("#32" + 'Empty Command String\r\n')
+                else:
                     try:
-                        command = split_data[0]
-                        body = split_data[1]
-                        if len(split_data) == 3:
-                            return_data = self.httpcomms.send_command(cmd_type='put', command=command,
-                                                                      body=json.loads(body), xy=split_data[2])
-                        else:
-                            return_data = self.httpcomms.send_command(cmd_type='put', command=command,
-                                                                      body=json.loads(body))
+                        logger.debug("#D5443 Received command from client: %s" % client_address[0])
+                        command = data
+                        split_data = command.split('%')
                         try:
-                            for update in json.loads(return_data):
-                                if 'success' in update:
-                                    for key in update['success']:
-                                        keys = key.strip("/").split("/")
-                                        if update['success'][key] == "0":
-                                            mydata = {keys[2]: {keys[3]: update['success'][key]}}
-                                            if keys[3] == "on" and not bool(update['success'][key]):
-                                                mydata[keys[2]]["bri"] = "0"
-                                            connection.send("#" + json.dumps(
-                                                {keys[0].rstrip('s'): {"id": keys[1], "info": mydata}}) + '\r\n')
-                                        else:
-                                            connection.send("#" + json.dumps(update) + '\r\n')
-                                else:
-                                    connection.send("#" + json.dumps(update) + '\r\n')
-                        except TypeError:
-                                connection.send("#" + json.dumps(return_data) + '\r\n')
-                    
-                    except IndexError:
-                        return_data = self.httpcomms.send_command(cmd_type='get', command=command)
-                        for item in return_data:
-                            if command == "lights":
-                                if not return_data[item]['state']['on']:
-                                    return_data[item]['state']['bri'] = 0
-                                    return_data[item]['state']['hue'] = 0
-                                    return_data[item]['state']['sat'] = 0
-                                return_me = return_data[item]
-                            elif command == "groups":
-                                if not return_data[item]["type"] in devicetypes:
-                                    continue
-                                if not return_data[item]['action']['on']:
-                                    return_data[item]['action']['bri'] = 0
-                                    return_data[item]['action']['hue'] = 0
-                                    return_data[item]['action']['sat'] = 0
-                                return_me = return_data[item]
-                            elif command == "scenes":
-                                if len(return_data[item]["appdata"]) < 0:
-                                    continue
-                                return_me = {"name": return_data[item]["name"],
-                                             "lights": ', '.join(return_data[item]["lights"])}
-                            elif command == "sensors":
-                                if not return_data[item]["modelid"] in devicetypes:
-                                    continue
-                                return_me = return_data[item]
+                            command = split_data[0]
+                            body = split_data[1]
+                            if len(split_data) == 3:
+                                return_data = self.httpcomms.send_command(cmd_type='put', command=command,
+                                                                          body=json.loads(body), xy=split_data[2])
                             else:
-                                return_me = return_data[item]
-                            connection.send("#" + json.dumps(
-                                {command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
-                    except TypeError:
-                        logger.debug("#D6939 TypeError, could not process received data from client %s"
+                                return_data = self.httpcomms.send_command(cmd_type='put', command=command,
+                                                                          body=json.loads(body))
+                            try:
+                                for update in json.loads(return_data):
+                                    if 'success' in update:
+                                        for key in update['success']:
+                                            keys = key.strip("/").split("/")
+                                            if update['success'][key] == "0":
+                                                mydata = {keys[2]: {keys[3]: update['success'][key]}}
+                                                if keys[3] == "on" and not bool(update['success'][key]):
+                                                    mydata[keys[2]]["bri"] = "0"
+                                                connection.send("#" + json.dumps(
+                                                    {keys[0].rstrip('s'): {"id": keys[1], "info": mydata}}) + '\r\n')
+                                            else:
+                                                connection.send("#" + json.dumps(update) + '\r\n')
+                                    else:
+                                        connection.send("#" + json.dumps(update) + '\r\n')
+                            except TypeError:
+                                    connection.send("#" + json.dumps(return_data) + '\r\n')
+
+                        except IndexError:
+                            return_data = self.httpcomms.send_command(cmd_type='get', command=command)
+                            for item in return_data:
+                                if command == "lights":
+                                    if not return_data[item]['state']['on']:
+                                        return_data[item]['state']['bri'] = 0
+                                        return_data[item]['state']['hue'] = 0
+                                        return_data[item]['state']['sat'] = 0
+                                    return_me = return_data[item]
+                                elif command == "groups":
+                                    if not return_data[item]["type"] in devicetypes:
+                                        continue
+                                    if not return_data[item]['action']['on']:
+                                        return_data[item]['action']['bri'] = 0
+                                        return_data[item]['action']['hue'] = 0
+                                        return_data[item]['action']['sat'] = 0
+                                    return_me = return_data[item]
+                                elif command == "scenes":
+                                    if len(return_data[item]["appdata"]) < 0:
+                                        continue
+                                    return_me = {"name": return_data[item]["name"],
+                                                 "lights": ', '.join(return_data[item]["lights"])}
+                                elif command == "sensors":
+                                    if not return_data[item]["modelid"] in devicetypes:
+                                        continue
+                                    return_me = return_data[item]
+                                else:
+                                    return_me = return_data[item]
+                                connection.send("#" + json.dumps(
+                                    {command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n')
+                        except TypeError:
+                            logger.debug("#D6939 TypeError, could not process received data from client %s"
+                                         % client_address[0])
+                            connection.send('#E0658 TypeError, could not process received data\r\n')
+
+                    except ValueError:
+                        logger.debug("#D2057 ValueError, could not process received data from client %s"
                                      % client_address[0])
-                        connection.send('#E0658 TypeError, could not process received data\r\n')
+                        connection.send('#E7804 ValueError, could not process received data\r\n')
+                    except TypeError:
+                        logger.debug("#D9011 TypeError, could not process received data from client %s"
+                                     % client_address[0])
+                        connection.send('#E7223 TypeError, could not process received data\r\n')
+                    except Exception, err:
+                        logger.error("#E3017 %s" % err, exc_info=True)
+                        connection.send('#E8408 %s\r\n' % err)
 
-                except ValueError:
-                    logger.debug("#D2057 ValueError, could not process received data from client %s"
-                                 % client_address[0])
-                    connection.send('#E7804 ValueError, could not process received data\r\n')
-                except TypeError:
-                    logger.debug("#D9011 TypeError, could not process received data from client %s"
-                                 % client_address[0])
-                    connection.send('#E7223 TypeError, could not process received data\r\n')
-                except Exception as err2:
-                    logger.error('#E3017 %s\r\n' % err2.args)
-                    connection.send('#E8408 %s\r\n' % err2.args)
-
-        logger.debug("#D4024 Client %s thread closing" % client_address[0])
-        self.lock.acquire()
-        logger.debug("#D4694 Removing client %s from clients array, and thread from threads array"
-                     % client_address[0])
-        self.clients.remove(connection)
-        self.threads.remove(threading.currentThread())
-        self.lock.release()
-        connection.close()
-        logger.info('#I7373 %s disconnected.' % client_address[0])
+            logger.debug("#D4024 Client %s thread closing" % client_address[0])
+            self.lock.acquire()
+            logger.debug("#D4694 Removing client %s from clients array, and thread from threads array"
+                         % client_address[0])
+            self.clients.remove(connection)
+            self.threads.remove(threading.currentThread())
+            self.lock.release()
+            connection.close()
+            logger.info('#I7373 %s disconnected.' % client_address[0])
+        except Exception, err:
+            logger.error("#E0910 %s" % err, exc_info=True)
 
 
 class HTTPBridge(threading.Thread):
@@ -467,8 +502,8 @@ class HTTPBridge(threading.Thread):
                                     self.message_queue.put("#" + json.dumps(
                                         {"light_b": {"id": light_id, "blue": blue}}
                                     ))
-                        except Exception as err4:
-                            logger.error("#E6663: %s" % err4.args)
+                        except Exception, err:
+                            logger.error("#E6663 %s" % err, exc_info=True)
                     #
                     # Groups
                     #
@@ -504,8 +539,8 @@ class HTTPBridge(threading.Thread):
                                         self.message_queue.put("#" + json.dumps(
                                             {"group_b": {"id": group_id, "blue": blue}}
                                         ))
-                            except Exception as err4:
-                                logger.error("#E7134 %s" % err4.args)
+                            except Exception, err:
+                                logger.error("#E7134 %s" % err, exc_info=True)
                     #
                     # Sensors
                     #
@@ -525,15 +560,14 @@ class HTTPBridge(threading.Thread):
                                                  % sensor_id)
                                     self.message_queue.put("#" + json.dumps({
                                         "sensor": {"id": sensor_id, "info": sensor_data}}))
-                            except Exception as err4:
-                                logger.error("#E3942 %s" % err4.args)
+                            except Exception, err:
+                                logger.error("#E3942 %s" % err, exc_info=True)
 
-            except Exception as err:
-                logger.error("#E9155 %s" % err.args)
+            except Exception, err:
+                logger.error("#E9155 %s" % err, exc_info=True)
             if verbose:
                 logger.debug("#D5604 Finished poll. Waiting for next poll.")
             time.sleep(http_poll_interval)
-        logger.debug("D2294 HTTP Poller has exited")
 
     def send_command(self, cmd_type='get', command='', body=None, xy=None):
         result = ''
@@ -551,8 +585,9 @@ class HTTPBridge(threading.Thread):
                         logger.error("#E1823 Command ('%s') HTTP Error" % command)
                     except TypeError:
                         logger.error("#E6378 Command ('%s') JSON Type Error" % command)
-                    except Exception as err:
-                        logger.error("#E0301 Command ('%s') Caught an error: %s" % (command, err.args))
+                    except Exception, err:
+                        logger.error("#E0301 Command ('%s') Caught an error: %s" %
+                                     (command, err), exc_info=True)
                 else:
                     try:
                         result = json.loads(urllib2.urlopen("http://%s/api/%s" % (http_ip_address, http_key),
@@ -563,8 +598,9 @@ class HTTPBridge(threading.Thread):
                         logger.error("#E9087 Command ('State Poll') HTTP Error")
                     except TypeError:
                         logger.error("#E8721 Command ('State Poll') JSON Type Error")
-                    except Exception as err:
-                        logger.error("#E9031 Command (State Poll') Caught an error: %s" % err.args)
+                    except Exception, err:
+                        logger.error("#E9031 Command (State Poll') Caught an error: %s" %
+                                     err, exc_info=True)
             elif cmd_type == 'put':
                 if xy:
                     part_a = command.split('/')
@@ -577,7 +613,8 @@ class HTTPBridge(threading.Thread):
                         pntxx, pntyy = self.converter.rgb_to_xy(body['bri'], cur_g, cur_b)
                     elif xy == "g":
                         pntxx, pntyy = self.converter.rgb_to_xy(cur_r, body['bri'], cur_b)
-                    elif xy == "b":
+                    else:
+                        # xy == "b" - assumed
                         pntxx, pntyy = self.converter.rgb_to_xy(cur_r, cur_g, body['bri'])
                     body = {'on': True, 'xy': [pntxx, pntyy]}
                 elif "bri" in body:
@@ -597,8 +634,9 @@ class HTTPBridge(threading.Thread):
                     logger.error("#E0786 Command ('%s') JSON Value Error" % command)
                 except TypeError:
                     logger.error("#E8080 Command ('%s') JSON Type Error" % command)
-                except Exception as err:
-                    logger.error("#E4663 Command ('%s') Caught an error: %s" % (command, err.args))
+                except Exception, err:
+                    logger.error("#E4663 Command ('%s') Caught an error: %s" %
+                                 (command, err), exc_info=True)
             else:
                 if command:
                     try:
@@ -613,8 +651,9 @@ class HTTPBridge(threading.Thread):
                         logger.error("#E5525 Command ('%s') JSON Value Error" % command)
                     except TypeError:
                         logger.error("#E2833 Command ('%s') JSON Type Error" % command)
-                    except Exception as err:
-                        logger.error("#E2030 Command ('%s') Caught an error: %s" % (command, err.args))
+                    except Exception, err:
+                        logger.error("#E2030 Command ('%s') Caught an error: %s" %
+                                     (command, err), exc_info=True)
                     if verbose:
                         logger.debug("#D1701 Command ('%s') sent successfully" % command)
                 else:
@@ -629,11 +668,11 @@ class HTTPBridge(threading.Thread):
                         logger.error("#E4494 Command ('State Poll') JSON Value Error")
                     except TypeError:
                         logger.error("#E9679 Command ('State Poll') JSON Type Error")
-                    except Exception as err:
-                        logger.error("#E7958 Command ('State Poll') Caught an error: %s" % err.args)
+                    except Exception, err:
+                        logger.error("#E7958 Command ('State Poll') Caught an error: %s" % err, exc_info=True)
             return result
-        except Exception as err:
-            logger.error('#E4933 Error sending Command. HTTP Request failed. %s' % err.args)
+        except Exception, err:
+            logger.error("#E4933 Error sending Command. HTTP Request failed. %s" % err, exc_info=True)
             self.message_queue.put("#" + "Invalid HTTP command")
 
     def new_connect(self, connection):
@@ -663,8 +702,12 @@ class HTTPBridge(threading.Thread):
                     ))
         except KeyError:
             logger.error('#E4092 No Light info to send')
-        except Exception as err:
-            logger.error("#E9683 Sending Lights to client caught an error: %s" % err.args)
+        except socket.error, err:
+            logger.error("#E6782 socket.error: %s" % err, exc_info=True)
+            # Finish the function as nothing more will work
+            return None
+        except Exception, err:
+            logger.error("#E9683 Sending Lights to client caught an error: %s" % err, exc_info=True)
         #
         # Groups
         #
@@ -690,8 +733,12 @@ class HTTPBridge(threading.Thread):
                     ))
         except KeyError:
             logger.error('#E1435 No Group info to send')
-        except Exception as err:
-            logger.error("#E7062 Sending Group to client caught an error: %s" % err.args)
+        except socket.error, err:
+            logger.error("#E8313 socket.error: %s" % err, exc_info=True)
+            # Finish the function as nothing more will work
+            return None
+        except Exception, err:
+            logger.error("#E7062 Sending Group to client caught an error: %s" % err, exc_info=True)
         #
         # Sensors
         #
@@ -701,8 +748,12 @@ class HTTPBridge(threading.Thread):
                 connection.send("#" + json.dumps({"sensor": {"id": sensor_id, "info": sensor_data}}) + '\r\n')
         except KeyError:
             logger.error('#E6132 No Sensor info to send')
-        except Exception as err:
-            logger.error("#E2635 Sending Sensors to client caught an error: %s" % err.args)
+        except socket.error, err:
+            logger.error("#E8114 socket.error: %s" % err, exc_info=True)
+            # Finish the function as nothing more will work
+            return None
+        except Exception, err:
+            logger.error("#E2635 Sending Sensors to client caught an error: %s" % err, exc_info=True)
         #
         # Scenes
         #
@@ -714,29 +765,48 @@ class HTTPBridge(threading.Thread):
                         "name": scene_data["name"], "lights": ', '.join(scene_data["lights"])}}}) + '\r\n')
         except KeyError:
             logger.error('#E0652 No Scene info to send')
-        except Exception as err:
-            logger.error("#E4272 Sending Scenes to client caught an error: %s" % err.args)
+        except socket.error, err:
+            logger.error("#E3559 socket.error: %s" % err, exc_info=True)
+            # Finish the function as nothing more will work
+            return None
+        except Exception, err:
+            logger.error("#E4272 Sending Scenes to client caught an error: %s" % err, exc_info=True)
 
         logger.debug("#D3476 Finished sending information to client")
 
 
+class SingleLevelFilter(logging.Filter):
+    def __init__(self, passlevel, reject):
+        logging.Filter.__init__(self)
+        self.passlevel = passlevel
+        self.reject = reject
+
+    def filter(self, record):
+        if self.reject:
+            return record.levelno != self.passlevel
+        else:
+            return record.levelno == self.passlevel
+
+
 def run():
+    global server_running
     queue = Queue(maxsize=50)
     try:
         logger.debug("#D3571 Starting the HTTP communications thread")
         httpcomms = HTTPBridge(queue)
         logger.debug("#D9699 Starting the Savant communications thread")
         CommunicationServer(queue, httpcomms).start()
-        while True:
+        while server_running:
             time.sleep(5)
-
+        queue.put('shutdown')
+        logger.info('#I3608 Restart request detected, restarting server')
     except KeyboardInterrupt:
         queue.put('shutdown')
         logger.info('#I8417 KeyboardInterrupt detected, shutting down server')
         raise SystemExit
-    except Exception as err0:
+    except Exception, err:
         queue.put('shutdown')
-        logger.error("#E3002" + err0.message)
+        logger.error("#E3002 %s" % err, exc_info=True)
     finally:
         logger.debug("#D7856 Hit end of 'run()' function")
         queue.put('shutdown')
@@ -746,8 +816,8 @@ def discover_http():
     try:
         result = json.loads(urllib2.urlopen("http://www.meethue.com/api/nupnp", timeout=4).read())[0]
         return result['internalipaddress']
-    except Exception as err:
-        logger.error("E6845 " + err.message)
+    except Exception, err:
+        logger.error("E6845 %s" % err, exc_info=True)
         return False
 
 
@@ -763,9 +833,9 @@ def register_api_key(ip_address):
             else:
                 logger.debug("D6282 API key successfully created: %s" % result["success"]["username"])
                 return result["success"]["username"]
-        except Exception as err:
+        except Exception, err:
 
-            logger.error("E9800 " + err.message)
+            logger.error("E9800 %s" % err, exc_info=True)
             return False
 
 
@@ -818,9 +888,7 @@ def load_settings(ip_address, key, cur_settings=None):
 
 
 if __name__ == '__main__':
-
     home = expanduser("~")
-
     # Argument parser and options
     parser = argparse.ArgumentParser(description="J14 HTTP-Savant Relay Server")
     parser.add_argument('-l', '--log', help="Logging Level: CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET",
@@ -858,6 +926,7 @@ if __name__ == '__main__':
         numeric_level = 10
         if args.verbose:
             verbose = True
+
     logger = logging.getLogger("savant_coprocessor")
     logformat = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
     log_rotate = logging.handlers.RotatingFileHandler(args.file, maxBytes=10*1024*1024, backupCount=5)
@@ -915,9 +984,10 @@ if __name__ == '__main__':
         if max_reconnects > 1:
             try:
                 logger.debug("#D2801 Starting 'run()' function")
+                server_running = True
                 run()
-            except socket.error, err5:
-                logger.error('#E2114 Connect error: ', err5)
+            except socket.error, err:
+                logger.error('#E2114 Connect error: %s' % err, exc_info=True)
                 reconnect_delay *= 2
             logger.info('#I1704 Waiting', reconnect_delay, 'seconds before restart.')
             logger.info('#I6382 Will try', max_reconnects, 'more times before shutdown')
