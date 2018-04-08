@@ -1,7 +1,6 @@
 #!/usr/bin/python
-#     
 #     'http-Savant Bridge'
-#     Copyright (C) '2017'  J14 Systems Ltd
+#     Copyright (C) '2018'  J14 Systems Ltd
 #
 #     This program is free software: you can redistribute it and/or modify
 #     it under the terms of the GNU General Public License as published by
@@ -26,6 +25,7 @@ import urllib2
 import threading
 import logging.handlers
 from Queue import Queue
+from subprocess import call
 from os.path import expanduser
 from collections import namedtuple
 
@@ -235,6 +235,7 @@ class CommunicationServer(threading.Thread):
             time.sleep(5)
             if self.queue_test:
                 logger.debug("#D5831 Message queue responded and should be working")
+                self.queue_test = False
             else:
                 server_running = False
                 logger.warning("W5297 Server needs to be restarted, Message Queue has stopped responding")
@@ -267,12 +268,17 @@ class CommunicationServer(threading.Thread):
                         try:
                             logger.debug("#D2710 Sending received message to client")
                             client.send(message + "\r\n")
+                            time.sleep(0.1)
                         except TypeError:
                             logger.debug("#D6116 Message format not right as string, formatting for JSON. "
                                          "Sending to client")
                             client.send(json.dumps(str(message)) + "\r\n")
+                            time.sleep(0.1)
+                        except Exception as err:
+                            logger.error("E1868 Message format issue: %s" % err)
             except Exception, err:
                 logger.error("#E5461 Message Queue had a problem processing a message: %s" % err, exc_info=True)
+                call(["service", "hue-coprocessor", "restart"])
         self.lock.acquire()
         logger.debug("#D9720 Removing message processor from threads array")
         self.threads.remove(threading.currentThread())
@@ -356,6 +362,9 @@ class CommunicationServer(threading.Thread):
                                         return_data[item]['state']['bri'] = 0
                                         return_data[item]['state']['hue'] = 0
                                         return_data[item]['state']['sat'] = 0
+
+                                    print return_data
+
                                     return_me = return_data[item]
                                 elif command == "groups":
                                     if not return_data[item]["type"] in devicetypes:
@@ -488,19 +497,25 @@ class HTTPBridge(threading.Thread):
                                     light_data['state']['bri'] = 0
                                     light_data['state']['hue'] = 0
                                     light_data['state']['sat'] = 0
+                                for key in remove_keys:
+                                    try:
+                                        light_data.pop(key, None)
+                                    except KeyError:
+                                        pass
+                                    except IndexError:
+                                        pass
                                 self.message_queue.put("#" + json.dumps(
                                     {"light": {"id": light_id, "info": light_data}}))
                                 if 'xy' in light_data['state']:
                                     pntx, pnty = light_data['state']['xy']
                                     red, green, blue = self.converter.xy_to_rgb(pntx, pnty)
+
                                     self.message_queue.put("#" + json.dumps(
-                                        {"light_r": {"id": light_id, "red": red}}
-                                    ))
-                                    self.message_queue.put("#" + json.dumps(
-                                        {"light_g": {"id": light_id, "green": green}}
-                                    ))
-                                    self.message_queue.put("#" + json.dumps(
-                                        {"light_b": {"id": light_id, "blue": blue}}
+                                        {"light_rgb": {"id": light_id, "info": [
+                                            {"color": "r", "value": red},
+                                            {"color": "g", "value": green},
+                                            {"color": "b", "value": blue}
+                                        ]}}
                                     ))
                         except Exception, err:
                             logger.error("#E6663 %s" % err, exc_info=True)
@@ -530,14 +545,13 @@ class HTTPBridge(threading.Thread):
                                     if 'xy' in group_data['action']:
                                         pntx, pnty = group_data['action']['xy']
                                         red, green, blue = self.converter.xy_to_rgb(pntx, pnty)
+
                                         self.message_queue.put("#" + json.dumps(
-                                            {"group_r": {"id": group_id, "red": red}}
-                                        ))
-                                        self.message_queue.put("#" + json.dumps(
-                                            {"group_g": {"id": group_id, "green": green}}
-                                        ))
-                                        self.message_queue.put("#" + json.dumps(
-                                            {"group_b": {"id": group_id, "blue": blue}}
+                                            {"group_rgb": {"id": group_id, "info": [
+                                                {"color": "r", "value": red},
+                                                {"color": "g", "value": green},
+                                                {"color": "b", "value": blue}
+                                            ]}}
                                         ))
                             except Exception, err:
                                 logger.error("#E7134 %s" % err, exc_info=True)
@@ -558,6 +572,13 @@ class HTTPBridge(threading.Thread):
                                     self.store["sensors"][sensor_id] = copy.deepcopy(sensor_data)
                                     logger.debug("#D4421 Notifying all clients of level change for sensor '%s'"
                                                  % sensor_id)
+                                    for key in remove_keys:
+                                        try:
+                                            sensor_data.pop(key, None)
+                                        except KeyError:
+                                            pass
+                                        except IndexError:
+                                            pass
                                     self.message_queue.put("#" + json.dumps({
                                         "sensor": {"id": sensor_id, "info": sensor_data}}))
                             except Exception, err:
@@ -618,6 +639,8 @@ class HTTPBridge(threading.Thread):
                         pntxx, pntyy = self.converter.rgb_to_xy(cur_r, cur_g, body['bri'])
                     body = {'on': True, 'xy': [pntxx, pntyy]}
                 elif "bri" in body:
+                    if "transitiontime" in body and isinstance(body['transitiontime'], float):
+                        body['transitiontime'] = int(math.ceil(body['transitiontime']))
                     if body['bri'] < 1:
                         body['on'] = False
                         body.pop('bri', None)
@@ -687,18 +710,25 @@ class HTTPBridge(threading.Thread):
                     light_data['state']['bri'] = 0
                     light_data['state']['hue'] = 0
                     light_data['state']['sat'] = 0
+                for key in remove_keys:
+                    try:
+                        light_data.pop(key, None)
+                    except KeyError:
+                        pass
+                    except IndexError:
+                        pass
                 connection.send("#" + json.dumps({"light": {"id": light_id, "info": light_data}}) + '\r\n')
+                # self.message_queue.put("#" + json.dumps({"light": {"id": light_id, "info": light_data}}))
                 if 'xy' in light_data['state']:
                     pntx, pnty = light_data['state']['xy']
                     red, green, blue = self.converter.xy_to_rgb(pntx, pnty)
+
                     self.message_queue.put("#" + json.dumps(
-                        {"light_r": {"id": light_id, "red": red}}
-                    ))
-                    self.message_queue.put("#" + json.dumps(
-                        {"light_g": {"id": light_id, "green": green}}
-                    ))
-                    self.message_queue.put("#" + json.dumps(
-                        {"light_b": {"id": light_id, "blue": blue}}
+                        {"light_rgb": {"id": light_id, "info": [
+                            {"color": "r", "value": red},
+                            {"color": "g", "value": green},
+                            {"color": "b", "value": blue}
+                        ]}}
                     ))
         except KeyError:
             logger.error('#E4092 No Light info to send')
@@ -719,17 +749,17 @@ class HTTPBridge(threading.Thread):
                     group_data['action']['hue'] = 0
                     group_data['action']['sat'] = 0
                 connection.send("#" + json.dumps({"group": {"id": group_id, "info": group_data}}) + '\r\n')
+                # self.message_queue.put("#" + json.dumps({"group": {"id": group_id, "info": group_data}}))
                 if 'xy' in group_data['action']:
                     pntx, pnty = group_data['action']['xy']
                     red, green, blue = self.converter.xy_to_rgb(pntx, pnty)
+
                     self.message_queue.put("#" + json.dumps(
-                        {"group_r": {"id": group_id, "red": red}}
-                    ))
-                    self.message_queue.put("#" + json.dumps(
-                        {"group_g": {"id": group_id, "green": green}}
-                    ))
-                    self.message_queue.put("#" + json.dumps(
-                        {"group_b": {"id": group_id, "blue": blue}}
+                        {"group_rgb": {"id": group_id, "info": [
+                            {"color": "r", "value": red},
+                            {"color": "g", "value": green},
+                            {"color": "b", "value": blue}
+                        ]}}
                     ))
         except KeyError:
             logger.error('#E1435 No Group info to send')
@@ -745,7 +775,15 @@ class HTTPBridge(threading.Thread):
         try:
             for sensor_id in self.store['sensors']:
                 sensor_data = self.store['sensors'][sensor_id]
+                for key in remove_keys:
+                    try:
+                        sensor_id.pop(key, None)
+                    except KeyError:
+                        pass
+                    except IndexError:
+                        pass
                 connection.send("#" + json.dumps({"sensor": {"id": sensor_id, "info": sensor_data}}) + '\r\n')
+                # self.message_queue.put("#" + json.dumps({"sensor": {"id": sensor_id, "info": sensor_data}}))
         except KeyError:
             logger.error('#E6132 No Sensor info to send')
         except socket.error, err:
@@ -763,6 +801,8 @@ class HTTPBridge(threading.Thread):
                 if len(scene_data["appdata"]) > 0:
                     connection.send("#" + json.dumps({"scene": {"id": scene_id, "info": {
                         "name": scene_data["name"], "lights": ', '.join(scene_data["lights"])}}}) + '\r\n')
+                    # self.message_queue.put("#" + json.dumps({"scene": {"id": scene_id, "info": {
+                    #    "name": scene_data["name"], "lights": ', '.join(scene_data["lights"])}}}))
         except KeyError:
             logger.error('#E0652 No Scene info to send')
         except socket.error, err:
@@ -790,7 +830,7 @@ class SingleLevelFilter(logging.Filter):
 
 def run():
     global server_running
-    queue = Queue(maxsize=50)
+    queue = Queue(maxsize=100)
     try:
         logger.debug("#D3571 Starting the HTTP communications thread")
         httpcomms = HTTPBridge(queue)
@@ -913,7 +953,7 @@ if __name__ == '__main__':
                         required=False, default=2)
     parser.add_argument('-t', '--type', help="Add multiple arguments to increase the sensor, "
                                              "and group types we are looking for",
-                        required=False, default=['SML001', 'Room'], nargs='+')
+                        required=False, action='append', type=str)
     args = parser.parse_args()
     log_exists = os.path.isfile(args.file)
     verbose = False
@@ -941,7 +981,8 @@ if __name__ == '__main__':
     http_poll_interval = float(args.interval)
     max_reconnects = args.maxrecon
     reconnect_delay = args.recontime
-    devicetypes = []
+    devicetypes = ['SML001', 'Room']
+    remove_keys = ['swupdate', 'swversion', 'uniqueid', 'capabilities', 'colorgamut', 'config',  'productname', 'manufacturername']
     settings_file = "%s/savant-hue.json" % home
 
     # Start fresh log file
@@ -951,9 +992,10 @@ if __name__ == '__main__':
     logger.debug("#D6575 Relay started")
 
     # Create an array of device types to monitor
-    for watchtype in args.type:
-        logger.debug("#D8620 Adding device type '%s' to monitor" % watchtype)
-        devicetypes.append(watchtype)
+    if args.type:
+        for watchtype in args.type:
+            logger.debug("#D8620 Adding device type '%s' to monitor" % watchtype)
+            devicetypes.append(watchtype)
 
     # Load settings
     if http_key == "" or http_ip_address == "":
