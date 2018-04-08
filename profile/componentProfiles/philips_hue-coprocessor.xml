@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.0.8" minimum_component_engine_version="8.0">
+<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="Philips" model="Hue-CoProcessor" alias="Philips Hue CoProcessor" device_class="Lighting_controller" rpm_xml_version="2.3" minimum_component_engine_version="8.0">
     <notes>
         Obtaining Scene addresses:
         - Upload your configuration to your host and make sure philips hue is connected as stated above
@@ -32,42 +32,38 @@
         <data name_on_component="ETHERNET">
             <combined_media>
                 <data_media type="ethernet"/>
-                <control port="22"/>
+                <control port="8085"/>
             </combined_media>
         </data>
         <internal name_on_component="Lighting Controller">
             <environmental_media/>
             <resource resource_type="ENV_LIGHTINGCONTROLLER_SOURCE"/>
         </internal>
+        <internal name_on_component="HVAC Controller">
+            <environmental_media/>
+            <resource resource_type="ENV_HVACCONTROLLER_SOURCE"/>
+        </internal>
     </media_interfaces>
     <state_variable_list>
         <state_variable name="math" owning_logical_component="Lighting_controller" state_center_binding="Math" state_center_type="integer">0</state_variable>
-        <dynamic_state_variable name="dyBrightness" owning_logical_component="Lighting_controller" state_center_binding="DT_Brightness" state_center_type="integer" range_min="1" range_max="50">0</dynamic_state_variable>
-        <dynamic_state_variable name="dyHue" owning_logical_component="Lighting_controller" state_center_binding="DT_Hue" state_center_type="integer" range_min="1" range_max="50">0</dynamic_state_variable>
-        <dynamic_state_variable name="dySaturation" owning_logical_component="Lighting_controller" state_center_binding="DT_Saturation" state_center_type="integer" range_min="1" range_max="50">0</dynamic_state_variable>
-        <dynamic_state_variable name="dyLightPowerStatus" owning_logical_component="Lighting_controller" state_center_binding="LightPowerStatus" state_center_type="string" range_min="1" range_max="50">OFF</dynamic_state_variable>
-        <dynamic_state_variable name="dyisLightOn" owning_logical_component="Lighting_controller" state_center_binding="isLightOn" state_center_type="boolean" range_min="1" range_max="50">0</dynamic_state_variable>
-        <dynamic_state_variable name="dyGroupBrightness" owning_logical_component="Lighting_controller" state_center_binding="DT_GroupBrightness" state_center_type="integer" range_min="1" range_max="50">0</dynamic_state_variable>
-        <dynamic_state_variable name="dyGroupHue" owning_logical_component="Lighting_controller" state_center_binding="DT_GroupHue" state_center_type="integer" range_min="1" range_max="50">0</dynamic_state_variable>
-        <dynamic_state_variable name="dyGroupSaturation" owning_logical_component="Lighting_controller" state_center_binding="DT_GroupSaturation" state_center_type="integer" range_min="1" range_max="50">0</dynamic_state_variable>
-        <dynamic_state_variable name="dyisGroupOn" owning_logical_component="Lighting_controller" state_center_binding="isGroupOn" state_center_type="boolean" range_min="1" range_max="50">0</dynamic_state_variable>
-        <dynamic_state_variable name="dyGroupPowerStatus" owning_logical_component="Lighting_controller" state_center_binding="GroupPowerStatus" state_center_type="string" range_min="1" range_max="50">OFF</dynamic_state_variable>
     </state_variable_list>
     <logical_component logical_component_name="Lighting_controller">
         <implementation>
             <internal name_on_component="Lighting Controller"/>
         </implementation>
+        <implementation>
+            <internal name_on_component="HVAC Controller"/>
+        </implementation>
         <status_messages>
-            <status_message name="Groups">
-                <constant type="character">{&quot;group&quot;: </constant>
-                <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="//name" matches_required="none">
+            <status_message name="Groups_updated">
+                <root_object name="group" matches_required="at_least_one" format="json">
+                    <values path="/group/info/name" matches_required="none">
                         <update state="groupName" type="string"></update>
                     </values>
-                    <values path="//id" matches_required="all">
+                    <values path="/group/id" matches_required="all">
                         <update state="groupNumber" type="integer"></update>
                     </values>
-                    <values path="//on" matches_required="none">
+                    <values path="/group/info/action/on" matches_required="none">
                         <update state="isGroupOn" type="boolean"></update>
                         <value_map match_required="no">
                             <map key="true">
@@ -84,111 +80,85 @@
                             </map>
                         </value_map>
                     </values>
-                    <values path="//bri" matches_required="none">
-                        <update state="GroupBrightness" type="integer"></update>
+                    <values path="/group/info/action/bri" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <multiply>100</multiply>
                                 <divide>254</divide>
-                                <update state="DT_GroupBrightness" type="integer"></update>
+                                <update state="GroupBrightness" type="integer"></update>
                             </convert>
                         </value_map>
                     </values>
-                    <values path="//alert" matches_required="none">
-                        <update state="DT_GroupAlert" type="string"></update>
+                    <values path="/group/info/action/alert" matches_required="none">
+                        <update state="GroupAlert" type="string"></update>
                     </values>
-                    <values path="//hue" matches_required="none">
-                        <update state="GroupHue" type="integer"></update>
+                    <values path="/group/info/action/hue" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <multiply>100</multiply>
                                 <divide>65535</divide>
-                                <update state="DT_GroupHue" type="integer"></update>
+                                <update state="GroupHue" type="integer"></update>
                             </convert>
                         </value_map>
                     </values>
-                    <values path="//sat" matches_required="none">
-                        <update state="GroupSaturation" type="integer"></update>
+                    <values path="/group/info/action/sat" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <multiply>100</multiply>
                                 <divide>254</divide>
-                                <update state="DT_GroupSaturation" type="integer"></update>
+                                <update state="GroupSaturation" type="integer"></update>
                             </convert>
                         </value_map>
                     </values>
-                    <values path="//ct" matches_required="none">
-                        <update state="DT_GroupColorTone" type="integer"></update>
+                    <values path="/group/info/action/ct" matches_required="none">
+                        <update state="GroupColorTone" type="integer"></update>
                     </values>
                 </root_object>
-                <constant type="character">}</constant>
                 <append_data_to_state_names state="groupNumber"/>
             </status_message>
-            <status_message name="Groups_rgb">
-                <constant type="character">{&quot;group_</constant>
-                <data type="character" terminator_type="character" terminator="&quot;">
-                    <update state="color" type="string"></update>
-                </data>
-                <constant type="character">: </constant>
-                <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="id" matches_required="at_least_one">
+            <status_message name="Groups_rgb_updated">
+                <root_object name="group_rgb" matches_required="at_least_one" format="json">
+                    <values path="/group_rgb/id" matches_required="at_least_one">
                         <update state="groupNumber" type="integer"></update>
+                        <append_identifier path="/group_rgb/id" name="groupNumber" note="Group Number"/>
+                        <append_identifier path="/group_rgb/info/color" name="color" note="color"/>
                     </values>
-                    <values path="red" matches_required="none">
-                        <update state="GroupColor" type="integer"></update>
+                    <values path="/group_rgb/info/color" matches_required="none">
+                        <update state="color" type="string"></update>
+                        <append_identifier path="/group_rgb/id" name="groupNumber" note="Group Number"/>
+                        <append_identifier path="/group_rgb/info/color" name="color" note="color"/>
+                    </values>
+                    <values path="/group_rgb/info/value" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <multiply>100</multiply>
                                 <divide>254</divide>
-                                <update state="DT_GroupColor" type="integer"></update>
+                                <update state="GroupColor" type="integer"></update>
                             </convert>
                         </value_map>
-                    </values>
-                    <values path="green" matches_required="none">
-                        <update state="GroupColor" type="integer"></update>
-                        <value_map match_required="no">
-                            <convert>
-                                <multiply>100</multiply>
-                                <divide>254</divide>
-                                <update state="DT_GroupColor" type="integer"></update>
-                            </convert>
-                        </value_map>
-                    </values>
-                    <values path="blue" matches_required="none">
-                        <update state="GroupColor" type="integer"></update>
-                        <value_map match_required="no">
-                            <convert>
-                                <multiply>100</multiply>
-                                <divide>254</divide>
-                                <update state="DT_GroupColor" type="integer"></update>
-                            </convert>
-                        </value_map>
+                        <append_identifier path="/group_rgb/id" name="groupNumber" note="Group Number"/>
+                        <append_identifier path="/group_rgb/info/color" name="color" note="color"/>
                     </values>
                 </root_object>
-                <constant type="character">}</constant>
-                <append_data_to_state_names state="groupNumber"/>
-                <append_data_to_state_names state="color"/>
             </status_message>
-            <status_message name="Lights">
-                <constant type="character">{&quot;light&quot;: </constant>
-                <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="//name" matches_required="none">
+            <status_message name="Lights_updated">
+                <root_object name="light" matches_required="at_least_one" format="json">
+                    <values path="/light/info/name" matches_required="none">
                         <update state="lightName" type="string"></update>
                     </values>
-                    <values path="//id" matches_required="all">
+                    <values path="/light/id" matches_required="all">
                         <update state="lightNumber" type="integer"></update>
                     </values>
-                    <values path="//bri" matches_required="none">
-                        <update state="Brightness" type="integer"></update>
+                    <values path="/light/info/state/bri" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <multiply>100</multiply>
                                 <divide>254</divide>
-                                <update state="DT_Brightness" type="integer"></update>
+                                <update state="Brightness" type="integer"></update>
                             </convert>
                         </value_map>
                     </values>
-                    <values path="//on" matches_required="none">
+                    <values path="/light/info/state/on" matches_required="none">
                         <update state="isLightOn" type="boolean"></update>
                         <value_map match_required="yes">
                             <map key="true">
@@ -205,158 +175,119 @@
                             </map>
                         </value_map>
                     </values>
-                    <values path="//hue" matches_required="none">
-                        <update state="Hue" type="integer"></update>
+                    <values path="/light/info/state/hue" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <multiply>100</multiply>
                                 <divide>65535</divide>
-                                <update state="DT_Hue" type="integer"></update>
+                                <update state="Hue" type="integer"></update>
                             </convert>
                         </value_map>
                     </values>
-                    <values path="//sat" matches_required="none">
-                        <update state="Saturation" type="integer"></update>
+                    <values path="/light/info/state/sat" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <multiply>100</multiply>
                                 <divide>254</divide>
-                                <update state="DT_Saturation" type="integer"></update>
+                                <update state="Saturation" type="integer"></update>
                             </convert>
                         </value_map>
                     </values>
-                    <values path="//ct" matches_required="none">
-                        <update state="DT_ColorTone" type="integer"></update>
+                    <values path="/light/info/state/ct" matches_required="none">
+                        <update state="ColorTone" type="integer"></update>
                     </values>
-                    <values path="//alert" matches_required="none">
-                        <update state="DT_Alert" type="string"></update>
+                    <values path="/light/info/state/alert" matches_required="none">
+                        <update state="Alert" type="string"></update>
                     </values>
-                    <values path="//reachable" matches_required="none">
+                    <values path="/light/info/state/reachable" matches_required="none">
                         <update state="lightConnected" type="boolean"></update>
                     </values>
-                    <values path="//type" matches_required="none">
+                    <values path="/light/info/type" matches_required="none">
                         <update state="lightType" type="string"></update>
                     </values>
-                    <values path="//modelid" matches_required="none">
+                    <values path="/light/info/modelid" matches_required="none">
                         <update state="lightModel" type="string"></update>
                     </values>
                 </root_object>
-                <constant type="character">}</constant>
                 <append_data_to_state_names state="lightNumber"/>
             </status_message>
-            <status_message name="Lights_rgb">
-                <constant type="character">{&quot;light_</constant>
-                <data type="character" terminator_type="character" terminator="&quot;">
-                    <update state="color" type="string"></update>
-                </data>
-                <constant type="character">: </constant>
-                <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="id" matches_required="at_least_one">
+            <status_message name="Lights_rgb_updated">
+                <root_object name="light_rgb" matches_required="at_least_one" format="json">
+                    <values path="/light_rgb/id" matches_required="at_least_one">
                         <update state="lightNumber" type="integer"></update>
+                        <append_identifier path="/light_rgb/id" name="lightNumber" note="Light Number"/>
+                        <append_identifier path="/light_rgb/info/color" name="color" note="color"/>
                     </values>
-                    <values path="red" matches_required="none">
-                        <update state="LightColor" type="integer"></update>
+                    <values path="/light_rgb/info/color" matches_required="none">
+                        <update state="color" type="string"></update>
+                        <append_identifier path="/light_rgb/id" name="lightNumber" note="Light Number"/>
+                        <append_identifier path="/light_rgb/info/color" name="color" note="color"/>
+                    </values>
+                    <values path="/light_rgb/info/value" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <multiply>100</multiply>
                                 <divide>254</divide>
-                                <update state="DT_LightColor" type="integer"></update>
+                                <update state="lightColor" type="integer"></update>
                             </convert>
                         </value_map>
-                    </values>
-                    <values path="green" matches_required="none">
-                        <update state="LightColor" type="integer"></update>
-                        <value_map match_required="no">
-                            <convert>
-                                <multiply>100</multiply>
-                                <divide>254</divide>
-                                <update state="DT_LightColor" type="integer"></update>
-                            </convert>
-                        </value_map>
-                    </values>
-                    <values path="blue" matches_required="none">
-                        <update state="LightColor" type="integer"></update>
-                        <value_map match_required="no">
-                            <convert>
-                                <multiply>100</multiply>
-                                <divide>254</divide>
-                                <update state="DT_LightColor" type="integer"></update>
-                            </convert>
-                        </value_map>
+                        <append_identifier path="/light_rgb/id" name="lightNumber" note="Light Number"/>
+                        <append_identifier path="/light_rgb/info/color" name="color" note="color"/>
                     </values>
                 </root_object>
-                <constant type="character">}</constant>
-                <append_data_to_state_names state="lightNumber"/>
-                <append_data_to_state_names state="color"/>
             </status_message>
-            
-            <status_message name="Scenes">
-                <constant type="character">{&quot;scene&quot;: </constant>
-                <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="//name" matches_required="none">
-                        <update state="sceneName" type="string"></update>
-                    </values>
-                    <values path="//id" matches_required="all">
-                        <update state="sceneCode" type="string"></update>
-                    </values>
-                    <values path="//lights" matches_required="none">
-                        <update state="sceneLights" type="string"></update>
-                    </values>
-                </root_object>
-                <constant type="character">}</constant>
-                <append_data_to_state_names state="sceneCode"/>
-                <append_data_to_state_names state="sceneName"/>
-            </status_message>
-            <status_message name="Sensors">
-                <constant type="character">{&quot;sensor&quot;: </constant>
-                <root_object name="none" matches_required="at_least_one" format="json">
-                    <values path="id" matches_required="all">
+            <status_message name="Sensors_updated">
+                <root_object name="sensor" matches_required="at_least_one" format="json">
+                    <values path="/sensor/id" matches_required="at_least_one">
                         <update state="sensorNumber" type="integer"></update>
                     </values>
-                    <values path="info/name" matches_required="all">
+                    <values path="/sensor/info/name" matches_required="none">
                         <update state="sensorName" type="string"></update>
                     </values>
-                    <values path="info/state/temperature" matches_required="all">
+                    <values path="/sensor/info/state/temperature" matches_required="none">
                         <value_map match_required="no">
                             <convert>
                                 <divide>100</divide>
-                                <update state="sensorTemp" type="float"></update>
+                                <update state="sensorData" type="integer"></update>
+                                <update state="ThermostatCurrentTemperature" type="integer"></update>
                             </convert>
                         </value_map>
                     </values>
-                    <values path="info/state/lastupdated" matches_required="all">
+                    <values path="/sensor/info/state/lastupdated" matches_required="none">
                         <update state="sensorUpdated" type="string"></update>
                     </values>
-                    <values path="info/state/dark" matches_required="all">
-                        <update state="sensorIsDark" type="boolean"></update>
+                    <values path="/sensor/info/state/lightlevel" matches_required="none">
+                        <update state="sensorData" type="integer"></update>
                     </values>
-                    <values path="info/state/daylight" matches_required="all">
-                        <update state="sensorIsDaylight" type="boolean"></update>
+                    <values path="/sensor/info/state/presence" matches_required="none">
+                        <update state="sensorData" type="integer"></update>
                     </values>
-                    <values path="info/state/lightlevel" matches_required="all">
-                        <update state="sensorCurrentLightLevel" type="integer"></update>
-                    </values>
-                    <values path="info/state/presence" matches_required="all">
-                        <update state="sensorHasPresence" type="boolean"></update>
+                    <values path="/sensor/info/state/buttonevent" matches_required="none">
+                        <update state="sensorData" type="integer"></update>
                     </values>
                 </root_object>
-                <constant type="character">}</constant>
                 <append_data_to_state_names state="sensorNumber"/>
             </status_message>
+            <status_message name="Scenes_updated">
+                <root_object name="scene" matches_required="at_least_one" format="json">
+                    <values path="/scene/info/name" matches_required="none">
+                        <update state="sceneName" type="string"></update>
+                    </values>
+                    <values path="/scene/id" matches_required="all">
+                        <update state="sceneCode" type="string"></update>
+                    </values>
+                    <values path="/scene/info/lights" matches_required="none">
+                        <update state="sceneLights" type="string"></update>
+                    </values>
+                </root_object>
+                <append_data_to_state_names state="sceneCode"/>
+                <append_data_to_state_names state="sceneName"/>
+            </status_message>
+            
         </status_messages>
         <universal_component_actions>
-            <action name="PowerOn">
-                <command_interface interface="ip">
-                    <command response_required="yes">
-                        <parameter_list>
-                            <parameter parameter_data_type="character" state_variable="bridge_ip"/>
-                            <parameter parameter_data_type="character">/api/</parameter>
-                            <parameter parameter_data_type="character" state_variable="user_name"/>
-                        </parameter_list>
-                        <delay ms_delay="50"/>
-                    </command>
-                </command_interface>
-            </action>
+            <action name="PowerOn"/>
+            <action name="PowerOff"/>
         </universal_component_actions>
         <resource_component_actions resource_type="ENV_LIGHTINGCONTROLLER_SOURCE">
             <action name="ButtonPress">
@@ -365,8 +296,9 @@
                 <action_argument name="Address3" note=""/>
                 <action_argument name="Address4" note=""/>
                 <action_argument name="Address5" note=""/>
+                <action_argument name="Address6" note=""/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="Address1"/>
@@ -375,7 +307,7 @@
                         </parameter_list>
                         <delay ms_delay="1000"/>
                     </command>
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="Address1"/>
@@ -400,7 +332,7 @@
                 <update_state_variable name="math" update_type="multiply" update_source="constant">254</update_state_variable>
                 <update_state_variable name="math" update_type="divide" update_source="constant">100</update_state_variable>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="Address1"/>
@@ -431,7 +363,7 @@
                 <update_state_variable name="math" update_type="multiply" update_source="constant">65535</update_state_variable>
                 <update_state_variable name="math" update_type="divide" update_source="constant">100</update_state_variable>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="Address1"/>
@@ -455,13 +387,12 @@
                 <action_argument name="Address5" note=""/>
                 <action_argument name="Address6" note=""/>
                 <action_argument name="DimmerLevel" note=""/>
-                <action_argument name="FadeTime" note=""/>
-                <action_argument name="DelayTime" note=""/>
+                <action_argument name="FlashTime" note=""/>
                 <update_state_variable name="math" update_type="set" update_source="action_argument">DimmerLevel</update_state_variable>
                 <update_state_variable name="math" update_type="multiply" update_source="constant">255</update_state_variable>
                 <update_state_variable name="math" update_type="divide" update_source="constant">100</update_state_variable>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="Address1"/>
@@ -469,7 +400,7 @@
                             <parameter parameter_data_type="character">%{&quot;on&quot;: true, &quot;sat&quot;: </parameter>
                             <parameter parameter_data_type="character" state_variable="math"/>
                             <parameter parameter_data_type="character">, &quot;transitiontime&quot;: </parameter>
-                            <parameter parameter_data_type="character" action_argument="FadeTime"/>
+                            <parameter parameter_data_type="character" action_argument="FlashTime"/>
                             <parameter parameter_data_type="character">}</parameter>
                         </parameter_list>
                         <delay ms_delay="50"/>
@@ -484,7 +415,7 @@
                 <action_argument name="Address5" note=""/>
                 <action_argument name="Address6" note=""/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/0/action</parameter>
                             <parameter parameter_data_type="character">%{&quot;scene&quot;: &quot;</parameter>
@@ -510,7 +441,7 @@
                 <update_state_variable name="math" update_type="multiply" update_source="constant">254</update_state_variable>
                 <update_state_variable name="math" update_type="divide" update_source="constant">100</update_state_variable>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="Address1"/>
@@ -535,7 +466,7 @@
             <entity name="GroupDimmer" address_components="1">
                 <slider_representation>
                     <press_action name="RFDimmerSet"/>
-                    <valueSource name="DT_GroupBrightness">
+                    <valueSource name="GroupBrightness">
                         <unique_identifier name="CurrentGroupNumber" address_component="1"/>
                     </valueSource>
                 </slider_representation>
@@ -650,7 +581,7 @@
             <entity name="BulbDimmer" address_components="1">
                 <slider_representation>
                     <press_action name="DimmerSet"/>
-                    <valueSource name="DT_Brightness">
+                    <valueSource name="Brightness">
                         <unique_identifier name="CurrentLightNumber" address_component="1"/>
                     </valueSource>
                 </slider_representation>
@@ -722,7 +653,7 @@
             <entity name="Hue" address_components="1">
                 <slider_representation>
                     <press_action name="LowVoltageDimmerSet"/>
-                    <valueSource name="DT_Hue">
+                    <valueSource name="Hue">
                         <unique_identifier name="CurrentLightNumber" address_component="1"/>
                     </valueSource>
                 </slider_representation>
@@ -730,7 +661,7 @@
             <entity name="Saturation" address_components="1">
                 <slider_representation>
                     <press_action name="DimmerFlash"/>
-                    <valueSource name="DT_Saturation">
+                    <valueSource name="Saturation">
                         <unique_identifier name="CurrentLightNumber" address_component="1"/>
                     </valueSource>
                 </slider_representation>
@@ -754,11 +685,42 @@
                 </slider_representation>
             </entity>
         </resource_component_actions>
+        <resource_component_actions resource_type="ENV_HVACCONTROLLER_SOURCE">
+            <action name="SetHVACModeAuto">
+                <action_argument name="ThermostatAddress"/>
+                <action_argument name="ThermostatAddress2"/>
+                <command_interface interface="ip">
+                    <command response_required="no">
+                        <parameter_list>
+                            <parameter parameter_data_type="character">sensors</parameter>
+                        </parameter_list>
+                        <delay ms_delay="50"/>
+                    </command>
+                </command_interface>
+            </action>
+            <action name="UpdateHVACStatus">
+                <action_argument name="ThermostatAddress"/>
+                <action_argument name="ThermostatAddress2"/>
+                <command_interface interface="ip">
+                    <command response_required="no">
+                        <parameter_list>
+                            <parameter parameter_data_type="character">sensors</parameter>
+                        </parameter_list>
+                        <delay ms_delay="50"/>
+                    </command>
+                </command_interface>
+            </action>
+            <entity name="Zone" address_components="1">
+                <screen_representation>
+                    <common_unique_identifier name="ThermostatAddress" address_component="1"/>
+                </screen_representation>    
+            </entity>
+        </resource_component_actions>
         <custom_component_actions>
             <action name="TurnLightOn">
                 <action_argument name="LightNumber"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -772,7 +734,7 @@
             <action name="TurnLightOff">
                 <action_argument name="LightNumber"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -786,7 +748,7 @@
             <action name="TurnGroupOn">
                 <action_argument name="GroupNumber"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="GroupNumber"/>
@@ -800,7 +762,7 @@
             <action name="TurnGroupOff">
                 <action_argument name="GroupNumber"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">/groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="GroupNumber"/>
@@ -819,7 +781,7 @@
                 <update_state_variable name="math" update_type="multiply" update_source="constant">254</update_state_variable>
                 <update_state_variable name="math" update_type="divide" update_source="constant">100</update_state_variable>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -842,7 +804,7 @@
                 <update_state_variable name="math" update_type="multiply" update_source="constant">254</update_state_variable>
                 <update_state_variable name="math" update_type="divide" update_source="constant">100</update_state_variable>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="GroupNumber"/>
@@ -861,7 +823,7 @@
                 <action_argument name="LightNumber"/>
                 <action_argument name="Hue" note="Range 0 - 65535"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -878,7 +840,7 @@
                 <action_argument name="GroupNumber"/>
                 <action_argument name="Hue" note="Range 0 - 65535"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="GroupNumber"/>
@@ -895,7 +857,7 @@
                 <action_argument name="LightNumber"/>
                 <action_argument name="ColorTemp" note="Range 153 - 500"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -912,10 +874,10 @@
                 <action_argument name="GroupNumber"/>
                 <action_argument name="ColorTemp" note="Range 153 - 500"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
-                            <parameter parameter_data_type="character" action_argument="LightNumber"/>
+                            <parameter parameter_data_type="character" action_argument="GroupNumber"/>
                             <parameter parameter_data_type="character">/action</parameter>
                             <parameter parameter_data_type="character">%{&quot;ct&quot;: </parameter>
                             <parameter parameter_data_type="character" action_argument="ColorTemp"/>
@@ -929,7 +891,7 @@
                 <action_argument name="LightNumber"/>
                 <action_argument name="Saturation" note="Range 0 - 254"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -946,7 +908,7 @@
                 <action_argument name="GroupNumber"/>
                 <action_argument name="Saturation" note="Range 0 - 254"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="GroupNumber"/>
@@ -964,7 +926,7 @@
                 <action_argument name="X_value" note="Range 0.0000 - 1.0000"/>
                 <action_argument name="Y_value" note="Range 0.0000 - 1.0000"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -984,7 +946,7 @@
                 <action_argument name="X_value" note="Range 0.0000 - 1.0000"/>
                 <action_argument name="Y_value" note="Range 0.0000 - 1.0000"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="GroupNumber"/>
@@ -1002,7 +964,7 @@
             <action name="FlashLightOnce">
                 <action_argument name="LightNumber" note=""/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -1011,7 +973,7 @@
                         </parameter_list>
                         <delay ms_delay="1000"/>
                     </command>
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights/</parameter>
                             <parameter parameter_data_type="character" action_argument="LightNumber"/>
@@ -1025,7 +987,7 @@
             <action name="FlashGroupOnce">
                 <action_argument name="GroupNumber" note=""/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="GroupNumber"/>
@@ -1034,7 +996,7 @@
                         </parameter_list>
                         <delay ms_delay="1000"/>
                     </command>
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/</parameter>
                             <parameter parameter_data_type="character" action_argument="GroupNumber"/>
@@ -1048,11 +1010,11 @@
             <action name="Scene">
                 <action_argument name="Scene" note="Scene code (eg tq4u-bseo-8rssG)"/>
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups/0/action</parameter>
                             <parameter parameter_data_type="character">%{&quot;scene&quot;: &quot;</parameter>
-                            <parameter parameter_data_type="character" state_variable="Scene"/>
+                            <parameter parameter_data_type="character" action_argument="Scene"/>
                             <parameter parameter_data_type="character">&quot;}</parameter>
                         </parameter_list>
                         <delay ms_delay="50"/>
@@ -1061,7 +1023,7 @@
             </action>
             <action name="GetGroups">
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">groups</parameter>
                         </parameter_list>
@@ -1071,7 +1033,7 @@
             </action>
             <action name="GetScenes">
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">scenes</parameter>
                         </parameter_list>
@@ -1081,7 +1043,7 @@
             </action>
             <action name="GetSensors">
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">sensors</parameter>
                         </parameter_list>
@@ -1091,7 +1053,7 @@
             </action>
             <action name="GetLights">
                 <command_interface interface="ip">
-                    <command response_required="yes">
+                    <command response_required="no">
                         <parameter_list>
                             <parameter parameter_data_type="character">lights</parameter>
                         </parameter_list>
