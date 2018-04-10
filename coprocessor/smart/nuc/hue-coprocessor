@@ -20,7 +20,7 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Controls the Savant-Hue server"
 NAME=hue-coprocessor
 DAEMON=/root/hue-coprocessor.py
-DAEMON_ARGS=""
+DAEMON_ARGS="-t HA_GEOFENCE -t SML001 -t Room -t RWL021 -t ZGPSWITCH"
 PIDFILE=/var/run/hue-coprocessor.pid
 SCRIPTNAME=/etc/init.d/hue-coprocessor
 
