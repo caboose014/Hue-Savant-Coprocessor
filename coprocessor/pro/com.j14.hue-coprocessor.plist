@@ -10,7 +10,7 @@
 	<string>com.j14.hue-coprocessor</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Users/RPM/hue-coprocessor.py</string>
+		<string>/Users/RPM/hue-coprocessor.py -t HA_GEOFENCE -t SML001 -t Room -t RWL021 -t ZGPSWITCH</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
