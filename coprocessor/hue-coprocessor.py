@@ -16,6 +16,7 @@
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 import os
+import ssl
 import time
 import json
 import copy
@@ -854,7 +855,8 @@ def run():
 
 def discover_http():
     try:
-        result = json.loads(urllib2.urlopen("http://www.meethue.com/api/nupnp", timeout=4).read())[0]
+        context = ssl._create_unverified_context()
+        result = json.loads(urllib2.urlopen("http://www.meethue.com/api/nupnp", context=context, timeout=4).read())[0]
         return result['internalipaddress']
     except Exception, err:
         logger.error("E6845 %s" % err, exc_info=True)
