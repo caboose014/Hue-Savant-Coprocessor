@@ -14,33 +14,77 @@ For the moment, installation is a manual process. Please see the steps below to 
 
 Choose your platform:
 
-	Smart Host:
+###########################################################
+
+	Smart Host (shc):
 	-------------------
 	
 1. Download and unzip a copy of this GitHub repository. For the remainder of this guide, I will assume you have downloaded it to your Downloads folder.
 2. Copy the files to your Host using the following commands fromthe Terminal application (~/Applications/Utilities/Terminal):
-		 A. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/hue-coprocessor.py RPM@192.168.14.50:hue-coprocessor.py`
-		 B. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/smart/hue-coprocessor RPM@192.168.14.50:hue-coprocessor`
+
+	A. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/hue-coprocessor.py RPM@192.168.14.50:/home/RPM/hue-coprocessor.py`
+	B. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/smart/shc/hue-coprocessor RPM@192.168.14.50:/home/RPM/hue-coprocessor`
+
 3. SSH into the host to preform the next steps. From Terminal again type:
-`ssh RPM@192.168.14.50`
-When prompted, enter your password (Default is 'RPM'). If you get an authenticity warning, just type 'yes'
+	`ssh RPM@192.168.14.50`
+		When prompted, enter your password (Default is 'RPM'). If you get an authenticity warning, just type 'yes'
+
+4. Once logged in,  we need to have root privileges to preform the next steps. Get these by typing: `sudo su` This will prompt you for your password again. Now you should be identified as the root user
+5. Now copy our two files to their appropriate location. To do this use the following commands:
+	A. `cp hue-coprocessor.py /home/RPM/hue-coprocessor.py`
+	B. `sudo cp hue-coprocessor /etc/init.d/hue-coprocessor`
+		When prompted, enter your password (Default is 'RPM').
+	C. `sudo chmod 755 hue-coprocessor /etc/init.d/hue-coprocessor`
+
+6. Now make sure that our CoProcessor starts when the host boots: 
+	`update-rc.d hue-coprocessor defaults 5`
+
+7. Type the following command to capture the API key, but don’t press return until immediately after pressing the ‘Link’ button on your Hue Bridge.
+	`/home.RPM/hue-coprocessor.py’
+		Press Ctrl + C to stop
+
+8. Check that the API key has been captured properly:
+	`cat /home/RPM/savant.json`
+
+9. Now we can start our Co-processor:
+	`service hue-coprocessor start`
+
+###########################################################
+
+	Smart Host (nuc):
+	-------------------
+	
+1. Download and unzip a copy of this GitHub repository. For the remainder of this guide, I will assume you have downloaded it to your Downloads folder.
+2. Copy the files to your Host using the following commands fromthe Terminal application (~/Applications/Utilities/Terminal):
+
+	A. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/hue-coprocessor.py RPM@192.168.14.50:hue-coprocessor.py`
+	B. `scp ~/Downloads/Hue-Savant-Coprocessor/coprocessor/smart/nuc/hue-coprocessor RPM@192.168.14.50:hue-coprocessor`
+
+3. SSH into the host to preform the next steps. From Terminal again type:
+
+	`ssh RPM@192.168.14.50`
+		When prompted, enter your password (Default is 'RPM'). If you get an authenticity warning, just type 'yes'
+
 4. Once logged in,  we need to have root privileges to preform the next steps. Get these by typing: `sudo su` This will prompt you for your password again. Now you should be identified as the root user
 5. Now copy our two files to their appropriate location. To do this use the following commands:
 	A. `cp hue-coprocessor.py /root/hue-coprocessor.py`
 	B. `cp hue-coprocessor /etc/init.d/hue-coprocessor`
-6. Move into the /etc/init.d directory with `cd /etc/init.d/`
-7. now make sure that our CoProcessor starts when the host boots: 
-`update-rc.d hue-coprocessor defaults`
-8. Now we can start our CoProcessor:
-`service hue-coprocessor start`
 
-or
+6. Move into the /etc/init.d directory with `cd /etc/init.d/`
+
+7. now make sure that our Co-processor starts when the host boots: 
+	`update-rc.d hue-coprocessor defaults`
+
+8. Now we can start our CoProcessor:
+	`service hue-coprocessor start`
+
+###########################################################
 
 	Pro Host:
 	-------------------
 
 
-----------
+###########################################################
 
 
 Post Install Steps:
