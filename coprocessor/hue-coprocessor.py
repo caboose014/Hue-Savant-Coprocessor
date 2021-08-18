@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #     'http-Savant Bridge'
 #     Copyright (C) '2018'  J14 Systems Ltd
 #
