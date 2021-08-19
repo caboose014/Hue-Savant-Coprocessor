@@ -303,13 +303,15 @@ class CommunicationServer(threading.Thread):
                 if not datarecv:
                     logger.debug("#D0308 Invalid data received from %s. Closing client connection" % client_address[0])
                     break
-                datarecv = datarecv.replace('\n', '')
-                datarecv = datarecv.replace('\r', '')
+                datarecv = datarecv.decode("utf-8")
+                logger.debug("#D9685 Recieved content of type: %s" % type(datarecv))
+                datarecv = datarecv.replace("\n", "")
+                datarecv = datarecv.replace("\r", "")
                 data = datarecv
-                if data.encode('hex') == 'fffb06':
-                    logger.debug("#D3612 Received ^C from client %s. Closing client connection" % client_address[0])
-                    connection.close()
-                    break
+                # if data.encode('hex') == 'fffb06':
+                #     logger.debug("#D3612 Received ^C from client %s. Closing client connection" % client_address[0])
+                #     connection.close()
+                #     break
                 if data == 'close' or data == 'exit' or data == 'quit':
                     logger.debug("#D1259 Received close, exit, or quit string from client %s. "
                                  "Closing client connection" % client_address[0])
@@ -327,6 +329,8 @@ class CommunicationServer(threading.Thread):
                         logger.debug("#D5443 Received command from client: %s" % client_address[0])
                         command = data
                         split_data = command.split('%')
+                        if split_data[2] == '(null)':
+                            del split_data[2]
                         try:
                             command = split_data[0]
                             body = split_data[1]
@@ -338,7 +342,7 @@ class CommunicationServer(threading.Thread):
                                 return_data = self.httpcomms.send_command(cmd_type='put', command=command,
                                                                           body_content=json.loads(body))
                             try:
-                                for update in json.loads(return_data):
+                                for update in return_data:
                                     if 'success' in update:
                                         for key in update['success']:
                                             keys = key.strip("/").split("/")
@@ -364,8 +368,6 @@ class CommunicationServer(threading.Thread):
                                         return_data[item]['state']['hue'] = 0
                                         return_data[item]['state']['sat'] = 0
 
-                                    # print(return_data)
-
                                     return_me = return_data[item]
                                 elif command == "groups":
                                     if not return_data[item]["type"] in devicetypes:
@@ -389,25 +391,25 @@ class CommunicationServer(threading.Thread):
                                 connection.send(('#' + json.dumps(
                                     {command.rstrip("s"): {"id": item, "info": return_me}}) + '\r\n').encode())
                         except TypeError:
-                            logger.debug("#D6939 TypeError, could not process received data from client %s"
+                            logger.debug('#D6939 TypeError, could not process received data from client %s'
                                          % client_address[0])
                             connection.send('#E0658 TypeError, could not process received data\r\n')
 
                     except ValueError:
-                        logger.debug("#D2057 ValueError, could not process received data from client %s"
+                        logger.debug('#D2057 ValueError, could not process received data from client %s'
                                      % client_address[0])
                         connection.send('#E7804 ValueError, could not process received data\r\n')
                     except TypeError:
-                        logger.debug("#D9011 TypeError, could not process received data from client %s"
+                        logger.debug('#D9011 TypeError, could not process received data from client %s'
                                      % client_address[0])
                         connection.send('#E7223 TypeError, could not process received data\r\n')
                     except Exception as err_D:
-                        logger.error("#E3017 %s" % err_D, exc_info=True)
+                        logger.error('#E3017 %s' % err_D, exc_info=True)
                         connection.send('#E8408 %s\r\n' % err_D)
 
-            logger.debug("#D4024 Client %s thread closing" % client_address[0])
+            logger.debug('#D4024 Client %s thread closing' % client_address[0])
             self.lock.acquire()
-            logger.debug("#D4694 Removing client %s from clients array, and thread from threads array"
+            logger.debug('#D4694 Removing client %s from clients array, and thread from threads array'
                          % client_address[0])
             self.clients.remove(connection)
             self.threads.remove(threading.currentThread())
@@ -415,7 +417,7 @@ class CommunicationServer(threading.Thread):
             connection.close()
             logger.info('#I7373 %s disconnected.' % client_address[0])
         except Exception as err_E:
-            logger.error("#E0910 %s" % err_E, exc_info=True)
+            logger.error('#E0910 %s' % err_E, exc_info=True)
 
 
 class HTTPBridge(threading.Thread):
@@ -425,19 +427,19 @@ class HTTPBridge(threading.Thread):
         self.lock = threading.Lock()
         self.threads = []
         self.converter = Converter(gamutc)
-        self.store = {"lights": {}, "groups": {}, "sensors": {}, "scenes": {}, "all": {}}
-        logger.debug("#D0930 HTTPBridge started")
+        self.store = {'lights': {}, "groups": {}, "sensors": {}, "scenes": {}, "all": {}}
+        logger.debug('#D0930 HTTPBridge started')
 
     def run(self):
-        logger.debug("#D1124 Setting up device poller")
+        logger.debug('#D1124 Setting up device poller')
         poller = threading.Thread(target=self.http_poller, args=())
         poller.setDaemon(True)
         poller.start()
-        logger.debug("#D6387 Adding device poller thread to threads array")
+        logger.debug('#D6387 Adding device poller thread to threads array')
         self.lock.acquire()
         self.threads.append(poller)
         self.lock.release()
-        logger.debug("#D0868 Setting up poller watcher")
+        logger.debug('#D0868 Setting up poller watcher')
         watcher = threading.Thread(target=self.thread_watcher, args=())
         watcher.setDaemon(True)
         watcher.start()
@@ -446,28 +448,28 @@ class HTTPBridge(threading.Thread):
         while True:
             for thread in self.threads:
                 if not thread.is_alive():
-                    logger.error("#E2052 HTTP Poller is not alive!!")
+                    logger.error('#E2052 HTTP Poller is not alive!!')
                     self.threads.remove(thread)
-                    logger.debug("#D0202 Setting up device poller")
+                    logger.debug('#D0202 Setting up device poller')
                     poller = threading.Thread(target=self.http_poller, args=())
                     poller.setDaemon(True)
                     poller.start()
-                    logger.debug("#D2399 Adding device poller thread to threads array")
+                    logger.debug('#D2399 Adding device poller thread to threads array')
                     self.lock.acquire()
                     self.threads.append(poller)
                     self.lock.release()
             time.sleep(30)
 
     def http_poller(self):
-        logger.debug("#D2549 Device poller started")
-        logger.debug("#D0890 Poller PID: %s" % threading.currentThread().ident)
+        logger.debug('#D2549 Device poller started')
+        logger.debug('#D0890 Poller PID: %s' % threading.currentThread().ident)
         while True:
             try:
                 if verbose:
-                    logger.debug("#D4899 Asking for device statuses from %s" % http_ip_address)
+                    logger.debug('#D4899 Asking for device statuses from %s' % http_ip_address)
                 result = self.send_command()
                 if verbose:
-                    logger.debug("#D2547 Received update successfully. Processing data...")
+                    logger.debug('#D2547 Received update successfully. Processing data...')
                 removekeys = ['config', 'resourcelinks', 'rules', 'schedules']
                 for removekey in removekeys:
                     try:
@@ -476,7 +478,7 @@ class HTTPBridge(threading.Thread):
                         pass
 
                 if not self.store['all'] == result:
-                    logger.debug("#D8176 HTTP Data chanced since last poll")
+                    logger.debug('#D8176 HTTP Data chanced since last poll')
                     self.store["all"] = copy.deepcopy(result)
                     #
                     # Lights
@@ -644,7 +646,7 @@ class HTTPBridge(threading.Thread):
                         body_content['transitiontime'] = int(math.ceil(body_content['transitiontime']))
                     if body_content['bri'] < 1:
                         body_content['on'] = False
-                        body_content.pop('bri', None)
+                        del body_content['bri']
                 try:
                     result = json.loads(http_req.request('PUT', "http://%s/api/%s/%s" %
                                                          (http_ip_address, http_key, command),
@@ -778,9 +780,6 @@ class HTTPBridge(threading.Thread):
                 sensor_data = self.store['sensors'][sensor_id]
                 for key in remove_keys:
                     try:
-                        # print(self.store['sensors'])
-                        # print(sensor_id)
-                        # print(key)
                         del self.store['sensors'][sensor_id][key]
                         # sensor_id.pop(key, None)
                     except KeyError:
